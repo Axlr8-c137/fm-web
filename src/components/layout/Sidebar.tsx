@@ -116,8 +116,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'perm
       open={open}
       onClose={onClose}
       sx={{
-        width: drawerWidth,
+        width: open ? drawerWidth : 0,
         flexShrink: 0,
+        transition: (theme) => theme.transitions.create('width', {
+          easing: theme.transitions.easing.sharp,
+          duration: open ? theme.transitions.duration.enteringScreen : theme.transitions.duration.leavingScreen,
+        }),
         '& .MuiDrawer-paper': {
           width: drawerWidth,
           boxSizing: 'border-box',
