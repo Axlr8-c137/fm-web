@@ -42,6 +42,20 @@ export const EmployeeService = {
   },
 
   /**
+   * Update an existing employee
+   */
+  updateEmployee: async (id: string, data: any) => {
+    return apiClient.put<ApiResponse<Employee>>(`/employees/${id}`, data);
+  },
+
+  /**
+   * Delete an employee
+   */
+  deleteEmployee: async (id: string) => {
+    return apiClient.delete<ApiResponse<any>>(`/employees/${id}`);
+  },
+
+  /**
    * Upload an employee document
    */
   uploadDocument: async (id: string, type: string, fileUrl: string) => {

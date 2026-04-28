@@ -13,15 +13,16 @@ import {
   useTheme,
   alpha,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Person as PersonIcon,
   Description as DocIcon,
-  Face as FaceIcon,
   CheckCircle as DoneIcon,
   CloudUpload as UploadIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -42,16 +43,18 @@ type BasicInfoSchema = z.infer<typeof basicInfoSchema>;
 const steps = [
   { label: 'Basic Info', icon: <PersonIcon /> },
   { label: 'Documents', icon: <DocIcon /> },
-  { label: 'Face Registration', icon: <FaceIcon /> },
 ];
 
 export default function EmployeeOnboardingPage() {
+  const navigate = useNavigate();
   const theme = useTheme();
   const user = useAuthStore((state) => state.user);
   const [activeStep, setActiveStep] = useState(0);
   const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentType, setDocumentType] = useState('AADHAAR');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form for Basic Info
@@ -68,6 +71,7 @@ export default function EmployeeOnboardingPage() {
   });
 
   const handleNext = () => {
+    setApiError(null);
     setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
@@ -77,6 +81,7 @@ export default function EmployeeOnboardingPage() {
 
   const onBasicInfoSubmit = async (data: BasicInfoSchema) => {
     setIsSubmitting(true);
+    setApiError(null);
     try {
       const payload = {
         fullName: `${data.firstName} ${data.lastName}`,
@@ -90,17 +95,46 @@ export default function EmployeeOnboardingPage() {
       
       const res = await EmployeeService.createEmployee(payload);
       
-      if (res.data && res.data.data) {
-         setCreatedEmployeeId(res.data.data.id);
+      // apiClient response interceptor unwraps the response. 
+      // It might be directly the object, or wrapped in a data field.
+      const newEmployeeId = (res as any).id || (res as any).data?.id;
+      
+      if (newEmployeeId) {
+         setCreatedEmployeeId(newEmployeeId);
          handleNext();
       } else {
+         console.warn("Could not find ID in response:", res);
          // Fallback if structure is different
          handleNext();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create employee", error);
-      // Fallback behavior for local testing if API isn't running
-      handleNext();
+      // The Axios interceptor unwraps the error, so `error` may directly be the backend error object
+      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
+      const status = error.status || error.response?.status;
+      
+      if (errData && errData.code) {
+        switch (errData.code) {
+          case 'DUPLICATE_RESOURCE':
+            setApiError(errData.message || 'An employee with this email or phone already exists.');
+            break;
+          case 'VALIDATION_ERROR':
+            setApiError(`Validation failed: ${errData.message || 'Please check your input.'}`);
+            break;
+          case 'AUTH_UNAUTHORIZED':
+            setApiError('You do not have permission to perform this action.');
+            break;
+          case 'SERVER_ERROR':
+            setApiError('A server error occurred while creating the employee. Please try again later.');
+            break;
+          default:
+            setApiError(errData.message || 'Failed to create employee. Please try again.');
+        }
+      } else if (status === 409) {
+        setApiError('An employee with these details already exists.');
+      } else {
+        setApiError(error.message || 'Failed to create employee. Please try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -109,50 +143,34 @@ export default function EmployeeOnboardingPage() {
   // Simulated Document Upload
   const handleDocumentUpload = async () => {
     if (!createdEmployeeId) {
-      handleNext();
+      setApiError("Employee was not created properly. Please start over.");
       return;
     }
     setIsSubmitting(true);
+    setApiError(null);
     try {
-      await EmployeeService.uploadDocument(createdEmployeeId, 'AADHAAR', 'https://example.com/dummy-doc.pdf');
+      await EmployeeService.uploadDocument(createdEmployeeId, documentType, 'https://example.com/dummy-doc.pdf');
       handleNext();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to upload document", error);
-      handleNext();
+      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
+      setApiError(errData?.message || 'Failed to upload document. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Simulated Face Registration
-  const handleFaceRegistration = async () => {
-    if (!createdEmployeeId) {
-      handleNext();
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      // Dummy embeddings payload
-      const dummyEmbeddings = [
-        { type: 'FRONT', embedding: [0.1, 0.2] },
-        { type: 'LEFT', embedding: [0.1, 0.2] },
-        { type: 'RIGHT', embedding: [0.1, 0.2] }
-      ];
-      await EmployeeService.registerFace(createdEmployeeId, dummyEmbeddings);
-      handleNext();
-    } catch (error) {
-      console.error("Failed to register face", error);
-      handleNext();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   const renderStepContent = (step: number) => {
     switch (step) {
       case 0:
         return (
           <Box component="form" id="basic-info-form" onSubmit={handleSubmit(onBasicInfoSubmit)}>
+            {apiError && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setApiError(null)}>
+                {apiError}
+              </Alert>
+            )}
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
@@ -278,6 +296,33 @@ export default function EmployeeOnboardingPage() {
       case 1:
         return (
           <Box sx={{ py: 4, textAlign: 'center' }}>
+            {apiError && (
+              <Alert severity="error" sx={{ mb: 3, borderRadius: 2, textAlign: 'left' }} onClose={() => setApiError(null)}>
+                {apiError}
+              </Alert>
+            )}
+            
+            <Box sx={{ mb: 4, textAlign: 'left' }}>
+              <TextField
+                select
+                fullWidth
+                label="Document Type"
+                value={documentType}
+                onChange={(e) => setDocumentType(e.target.value)}
+                variant="outlined"
+                sx={{ '& .MuiInputBase-root': { borderRadius: 2 } }}
+              >
+                <MenuItem value="AADHAAR">Aadhaar</MenuItem>
+                <MenuItem value="PAN">PAN</MenuItem>
+                <MenuItem value="RATION_CARD">Ration Card</MenuItem>
+                <MenuItem value="VOTER_ID">Voter ID</MenuItem>
+                <MenuItem value="DRIVING_LICENSE">Driving License</MenuItem>
+                <MenuItem value="PASSPORT">Passport</MenuItem>
+                <MenuItem value="BANK_PASSBOOK">Bank Passbook</MenuItem>
+                <MenuItem value="OTHER">Other</MenuItem>
+              </TextField>
+            </Box>
+
             <Box
               onClick={() => fileInputRef.current?.click()}
               sx={{
@@ -324,62 +369,7 @@ export default function EmployeeOnboardingPage() {
             </Box>
           </Box>
         );
-      case 2:
-        return (
-          <Box sx={{ py: 4, textAlign: 'center' }}>
-            <Box
-              sx={{
-                width: '100%',
-                maxWidth: 400,
-                mx: 'auto',
-                aspectRatio: '3/4',
-                backgroundColor: '#000',
-                borderRadius: 4,
-                position: 'relative',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}
-            >
-              <FaceIcon sx={{ fontSize: 80, color: 'rgba(255,255,255,0.3)' }} />
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 20,
-                  left: 20,
-                  right: 20,
-                  p: 1.5,
-                  borderRadius: 2,
-                  backgroundColor: 'rgba(255,255,255,0.1)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                }}
-              >
-                <Typography variant="body2" color="white" fontWeight={600}>
-                  Align face within the frame
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  p: 3,
-                  background: 'linear-gradient(transparent, rgba(0,0,0,0.8))',
-                }}
-              >
-                 <Button fullWidth variant="contained" color="secondary" sx={{ py: 1.5, fontWeight: 700, borderRadius: 2 }}>
-                    Capture Profile
-                 </Button>
-              </Box>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              Multi-pose capture: Front, Left, Right
-            </Typography>
-          </Box>
-        );
+
       default:
         return null;
     }
@@ -404,6 +394,14 @@ export default function EmployeeOnboardingPage() {
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
           The employee has been successfully registered and their credentials have been generated.
         </Typography>
+
+        <Alert severity="info" sx={{ mb: 4, textAlign: 'left', borderRadius: 2, border: `1px solid ${alpha(theme.palette.info.main, 0.3)}` }}>
+          <Typography variant="subtitle2" fontWeight={700} gutterBottom>Action Required: Face Enrollment</Typography>
+          <Typography variant="body2">
+            The mandatory multi-pose face enrollment must be completed via the Android Application. 
+            An Administrator should log into the mobile app, navigate to the employee list, and complete the "Enroll Face" workflow.
+          </Typography>
+        </Alert>
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
           <Button variant="contained" onClick={() => {
             setActiveStep(0);
@@ -413,8 +411,8 @@ export default function EmployeeOnboardingPage() {
           }} sx={{ borderRadius: 2, px: 4 }}>
             Onboard Another
           </Button>
-          <Button variant="outlined" sx={{ borderRadius: 2, px: 4 }}>
-            View Profile
+          <Button variant="outlined" onClick={() => navigate('/employees')} sx={{ borderRadius: 2, px: 4 }}>
+            Back to Employees
           </Button>
         </Box>
       </Paper>
@@ -497,20 +495,11 @@ export default function EmployeeOnboardingPage() {
             >
               {isSubmitting ? <CircularProgress size={24} /> : 'Next'}
             </Button>
-          ) : activeStep === 1 ? (
-             <Button
-               variant="contained"
-               disabled={isSubmitting}
-               onClick={handleDocumentUpload}
-               sx={{ borderRadius: 2, px: 4, fontWeight: 700, boxShadow: theme.shadows[2] }}
-             >
-               {isSubmitting ? <CircularProgress size={24} /> : 'Upload & Next'}
-             </Button>
           ) : (
              <Button
                variant="contained"
                disabled={isSubmitting}
-               onClick={handleFaceRegistration}
+               onClick={handleDocumentUpload}
                sx={{ borderRadius: 2, px: 4, fontWeight: 700, boxShadow: theme.shadows[2] }}
              >
                {isSubmitting ? <CircularProgress size={24} /> : 'Finish'}
