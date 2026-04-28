@@ -1,0 +1,36 @@
+:root {
+  /* Typography */
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  
+  /* Core Colors (FM Style Guide) */
+  --color-primary: #448AFF; /* blueAccent */
+  --color-primary-light: rgba(68, 138, 255, 0.1);
+  --color-primary-dark: #2979FF;
+  
+  /* Status Colors */
+  --color-success: #4CAF50; /* green */
+  --color-danger: #FF5252;  /* redAccent */
+  --color-warning: #FFAB40; /* orangeAccent */
+  --color-info: #2196F3;    /* blue */
+  
+  /* Neutral Colors (Light Mode default) */
+  --color-bg-light: #FFFFFF;
+  --color-bg-surface: #F5F5F5;
+  --color-bg-dark: #0D1117; /* Dark Mode background */
+  --color-surface-dark: #161B22; /* Card/Surface in dark mode */
+  
+  --color-text-main: rgba(0, 0, 0, 0.87);
+  --color-text-muted: #757575;
+  --color-border: #E0E0E0;
+  
+  /* Layout */
+  --sidebar-width: 260px;
+  --header-height: 64px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  
+  /* Transitions */
+  --transition-fast: 150ms ease;
+}
