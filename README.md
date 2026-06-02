@@ -1,73 +1,97 @@
-# React + TypeScript + Vite
+# FM Web Portal
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The FM Web Portal is the central management interface for a comprehensive Facility Management Application. It provides a robust, real-time environment for managing operations, personnel, and compliance within the facility management sector.
 
-Currently, two official plugins are available:
+## 🚀 Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This portal serves as the administrative hub for:
+- **Operations Monitoring**: Real-time tracking and geofencing alerts for field employees.
+- **Employee Lifecycle Management**: Seamless onboarding from documentation (Aadhaar, PAN, etc.) to payroll registration.
+- **Attendance & Site Reporting**: Precise tracking via geofencing and facial recognition (integrated with the mobile app).
+- **Payroll & Compliance**: Automated payroll processing with Indian statutory compliance (PF, ESIC, TDS, PT).
+- **Site Management**: Granular control over client sites and geofence configurations.
 
-## React Compiler
+## 🛠 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend**: React 19 + TypeScript + Vite
+- **UI Framework**: Material UI (MUI) with Material 3 Design Patterns
+- **State Management**: Zustand (Client) & TanStack Query v5 (Server)
+- **Routing**: React Router v7
+- **Data Handling**: Axios with interceptors for auth & error handling
+- **Visualization**: Leaflet/React-Leaflet for maps, Recharts for analytics
+- **Forms & Validation**: React Hook Form + Zod
+- **I18n**: i18next for multi-language support (English, Hindi, Marathi)
 
-## Expanding the ESLint configuration
+## 📁 Project Structure
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+src/
+├── api/          # Axios client and service-specific API calls
+├── assets/       # Static assets (images, icons)
+├── components/   # Reusable UI components (common, layout, auth, etc.)
+├── hooks/        # Custom React hooks
+├── i18n/         # Internationalization configurations
+├── pages/        # Application pages/views grouped by module
+├── stores/       # Zustand state stores
+├── styles/       # Global styles and MUI theme configuration
+├── types/        # TypeScript interfaces and types
+└── utils/        # Helper functions and utilities
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## ⚙️ Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Prerequisites
+- Node.js (Latest LTS recommended)
+- npm or yarn
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Installation
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Development
+Start the development server:
+```bash
+npm run dev
 ```
+The application will be available at `http://localhost:5173`.
+
+### Environment Configuration
+The application uses Vite environment variables. Ensure the `VITE_API_BASE_URL` is correctly set in your `.env` files.
+- `.env.development`: Local development API
+- `.env.production`: Production API
+
+### Build
+Generate a production build:
+```bash
+npm run build
+```
+The output will be in the `dist` directory.
+
+## 🛡 Security & Authentication
+- **Role-Based Access Control (RBAC)**: Supports Admin, Super Admin, Supervisor, and Payroll Admin roles.
+- **In-Memory Tokens**: Access tokens are kept in memory for enhanced security.
+- **Session Management**: Secure refresh token handling via httpOnly cookies.
+
+## 🗺 Project Status & Roadmap
+The project is currently in active development.
+
+### ✅ Completed
+- [x] Foundation & Architecture (React 19, MUI Material 3, Zustand)
+- [x] Auth & Session Management
+- [x] Employee Listing & Advanced Search
+- [x] Site Listing & Detailed View
+- [x] Attendance Logs with Advanced Filtering
+- [x] Multi-step Employee Onboarding (Basic Info, Documents, Facial Registration)
+
+### 🚧 In Progress / Planned
+- [ ] **Operations**: Live employee tracking on maps (Leaflet integration).
+- [ ] **Geofencing**: Interactive geofence editor for site perimeters.
+- [ ] **Payroll**: Full payroll processing engine and salary management.
+- [ ] **Analytics**: Dashboard with real-time stats and heatmaps.
+- [ ] **I18n**: Full implementation of Hindi and Marathi locales.
+
+## 📄 License
+[Private / Proprietary]
