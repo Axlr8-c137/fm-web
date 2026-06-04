@@ -56,10 +56,30 @@ export const EmployeeService = {
   },
 
   /**
-   * Upload an employee document
+   * Upload a real file to the media service, returns the CDN file URL
+   */
+  uploadDocumentFile: async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', 'employee_documents');
+    const response: any = await apiClient.post('/media/upload', formData);
+    // The media endpoint returns { fileUrl, key, ... }
+    return response?.fileUrl || response?.data?.fileUrl || response?.url || '';
+  },
+
+  /**
+   * Register a document URL for an employee (after actual file upload)
    */
   uploadDocument: async (id: string, type: string, fileUrl: string) => {
     return apiClient.post<ApiResponse<any>>(`/employees/${id}/documents?type=${type}&fileUrl=${encodeURIComponent(fileUrl)}`);
+  },
+
+  /**
+   * Verify (approve/reject) an employee document
+   */
+  verifyDocument: async (docId: string, isApproved: boolean, reason?: string) => {
+    const reasonParam = reason ? `&reason=${encodeURIComponent(reason)}` : '';
+    return apiClient.put<ApiResponse<any>>(`/employees/documents/${docId}/verify?isApproved=${isApproved}${reasonParam}`);
   },
 
   /**
@@ -69,3 +89,4 @@ export const EmployeeService = {
     return apiClient.post<ApiResponse<any>>(`/employees/${id}/face`, embeddings);
   },
 };
+
