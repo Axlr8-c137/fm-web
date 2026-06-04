@@ -157,10 +157,42 @@ export default function AttendanceLogsPage() {
 
   const manualSiteId = watch('siteId');
 
+  // Date range parameters calculated based on filterDatePreset to bypass 24h backend default limit
+  const dateRangeParams = useMemo(() => {
+    const now = new Date();
+    switch (filterDatePreset) {
+      case 'TODAY': {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        return { start: start.toISOString(), end: end.toISOString() };
+      }
+      case 'YESTERDAY': {
+        const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+        const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        return { start: start.toISOString(), end: end.toISOString() };
+      }
+      case '7DAYS': {
+        const start = new Date();
+        start.setDate(now.getDate() - 7);
+        return { start: start.toISOString(), end: now.toISOString() };
+      }
+      case 'ALL':
+      default: {
+        const start = new Date(2020, 0, 1);
+        return { start: start.toISOString(), end: now.toISOString() };
+      }
+    }
+  }, [filterDatePreset]);
+
   // Queries
   const { data, isLoading } = useQuery({
-    queryKey: ['attendance-logs'],
-    queryFn: () => AttendanceService.getLogs({ page: 0, size: 500 }), // Load more for local dashboard analytics
+    queryKey: ['attendance-logs', dateRangeParams],
+    queryFn: () => AttendanceService.getLogs({
+      page: 0,
+      size: 500,
+      start: dateRangeParams.start,
+      end: dateRangeParams.end,
+    }),
   });
 
   const { data: employeesData } = useQuery({
