@@ -61,8 +61,10 @@ import { SiteService } from '../../api/site.service';
 import { EmployeeService } from '../../api/employee.service';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { DataTable } from '../../components/common/DataTable';
+import { GoogleMapPickerModal } from '../../components/common/GoogleMapPickerModal';
 import { useAuthStore } from '../../stores/auth.store';
 import type { GridColDef } from '@mui/x-data-grid';
+
 
 
 // Validation Schema for Site Form
@@ -197,12 +199,14 @@ export default function SiteDetailsPage() {
   const [tabValue, setTabValue] = useState(0);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<any[]>([]);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [addressSearchQuery, setAddressSearchQuery] = useState('');
+
 
   const currentUser = useAuthStore((state) => state.user);
   const organizationId = currentUser?.organizationId;
@@ -385,7 +389,14 @@ export default function SiteDetailsPage() {
     reverseGeocode(lat, lon);
   };
 
+  const handleSelectLocationFromPicker = (lat: number, lng: number, address: string) => {
+    setValue('latitude', lat, { shouldValidate: true, shouldDirty: true });
+    setValue('longitude', lng, { shouldValidate: true, shouldDirty: true });
+    setValue('address', address, { shouldValidate: true, shouldDirty: true });
+  };
+
   const onEditSubmit = async (formData: any) => {
+
     setIsSubmitting(true);
     setApiError(null);
     try {
@@ -1093,6 +1104,7 @@ export default function SiteDetailsPage() {
                               }
                             }}
                             slotProps={{
+                              inputLabel: { shrink: true },
                               input: {
                                 sx: { borderRadius: 2 },
                                 endAdornment: (
@@ -1103,7 +1115,7 @@ export default function SiteDetailsPage() {
                                       <Tooltip title="Search and pin on Map">
                                         <IconButton
                                           size="small"
-                                          onClick={() => geocodeCustomAddress(field.value || '')}
+                                          onClick={() => setIsMapPickerOpen(true)}
                                           sx={{ mr: 0.5 }}
                                         >
                                           <MapIcon fontSize="small" />
@@ -1157,6 +1169,7 @@ export default function SiteDetailsPage() {
                                 helperText={errors.latitude?.message}
                                 slotProps={{
                                   htmlInput: { step: 'any' },
+                                  inputLabel: { shrink: true },
                                   input: { sx: { borderRadius: 2 } }
                                 }}
                                 onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
@@ -1180,6 +1193,7 @@ export default function SiteDetailsPage() {
                                 helperText={errors.longitude?.message}
                                 slotProps={{
                                   htmlInput: { step: 'any' },
+                                  inputLabel: { shrink: true },
                                   input: { sx: { borderRadius: 2 } }
                                 }}
                                 onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
@@ -1190,6 +1204,8 @@ export default function SiteDetailsPage() {
                       </Grid>
                     </AccordionDetails>
                   </Accordion>
+
+
 
                   {/* Leaflet Map Box */}
                   <Box
@@ -1298,6 +1314,16 @@ export default function SiteDetailsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <GoogleMapPickerModal
+        open={isMapPickerOpen}
+        onClose={() => setIsMapPickerOpen(false)}
+        onSelectLocation={handleSelectLocationFromPicker}
+        initialLat={watchLatitude}
+        initialLng={watchLongitude}
+        initialAddress={watch('address')}
+      />
     </Box>
   );
 }
+

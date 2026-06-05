@@ -205,12 +205,12 @@ export default function PayrollPage() {
 
   const { data: sitesData } = useQuery({
     queryKey: ['sites-payroll'],
-    queryFn: () => apiClient.get('/sites?limit=200'),
+    queryFn: () => apiClient.get('/sites?limit=100'),
   });
 
   const { data: employeesData, isLoading: employeesLoading, refetch: refetchEmployees } = useQuery({
     queryKey: ['employees-payroll'],
-    queryFn: () => apiClient.get('/employees?limit=200'),
+    queryFn: () => apiClient.get('/employees?limit=100'),
     enabled: activeTab === 1,
   });
 

@@ -116,9 +116,15 @@ export default function EmployeeOnboardingPage() {
   // Load organizations for SUPER_ADMIN
   useEffect(() => {
     if (user?.role === 'SUPER_ADMIN') {
-      apiClient.get('/admin/organizations')
+      // GET /v1/admin/organizations returns ApiResponse<PaginatedOrganizations>
+      // apiClient already unwraps axios → { success, data: { organizations: [...], meta } }
+      apiClient.get('/admin/organizations?page=1&limit=100')
         .then((res: any) => {
-          const orgList = res?.data || res?.data?.data || [];
+          // paginated: res.data.organizations OR res.organizations (depending on unwrap level)
+          const orgList = res?.data?.organizations
+            ?? res?.organizations
+            ?? res?.data
+            ?? [];
           setOrganizations(Array.isArray(orgList) ? orgList : []);
         })
         .catch((err) => console.error('Failed to load organizations', err));
@@ -129,7 +135,7 @@ export default function EmployeeOnboardingPage() {
   const loadSitesForOrg = (orgId: string) => {
     if (!orgId) { setSites([]); return; }
     setSitesLoading(true);
-    apiClient.get(`/sites?organizationId=${orgId}&limit=200`)
+    apiClient.get(`/sites?organizationId=${orgId}&limit=100`)
       .then((res: any) => {
         const list = res?.data?.data || res?.data || [];
         setSites(Array.isArray(list) ? list : []);
@@ -145,7 +151,7 @@ export default function EmployeeOnboardingPage() {
     }
   }, [user]);
 
-  const { control, handleSubmit, watch, formState: { errors }, reset } = useForm<BasicInfoSchema>({
+  const { control, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<BasicInfoSchema>({
     resolver: zodResolver(basicInfoSchema),
     defaultValues: {
       firstName: '',
@@ -162,11 +168,13 @@ export default function EmployeeOnboardingPage() {
   // For SUPER_ADMIN: reload sites whenever the org selection changes
   const watchedOrgId = watch('organizationId');
   useEffect(() => {
-    if (user?.role === 'SUPER_ADMIN' && watchedOrgId) {
-      loadSitesForOrg(watchedOrgId);
+    if (user?.role === 'SUPER_ADMIN') {
+      loadSitesForOrg(watchedOrgId || '');
+      setValue('siteId', ''); // Dynamically reset assigned site when organization changes
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedOrgId, user?.role]);
+
 
   const handleBack = () => {
     setApiError(null);

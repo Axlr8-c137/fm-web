@@ -55,16 +55,28 @@ export const EmployeeService = {
     return apiClient.delete<ApiResponse<any>>(`/employees/${id}`);
   },
 
-  /**
-   * Upload a real file to the media service, returns the CDN file URL
-   */
   uploadDocumentFile: async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', 'employee_documents');
-    const response: any = await apiClient.post('/media/upload', formData);
-    // The media endpoint returns { fileUrl, key, ... }
-    return response?.fileUrl || response?.data?.fileUrl || response?.url || '';
+    // apiClient unwraps axios response to res.data, so response = MediaConfirmResponseDto
+    // Backend returns: { fileKey, cdnUrl, thumbnailUrl }
+    const response: any = await apiClient.post('/media/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    
+    // Recursively extract URL from backend payload which might be wrapped differently
+    const extractUrl = (obj: any): string => {
+      if (!obj) return '';
+      if (typeof obj === 'string') return obj;
+      if (obj.cdnUrl) return obj.cdnUrl;
+      if (obj.fileUrl) return obj.fileUrl;
+      if (obj.url) return obj.url;
+      if (obj.data) return extractUrl(obj.data);
+      return '';
+    };
+
+    return extractUrl(response);
   },
 
   /**

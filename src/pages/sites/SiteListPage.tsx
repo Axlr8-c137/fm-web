@@ -57,9 +57,11 @@ const CircleAny = Circle as any;
 import { SiteService } from '../../api/site.service';
 import { EmployeeService } from '../../api/employee.service';
 import { DataTable } from '../../components/common/DataTable';
+import { GoogleMapPickerModal } from '../../components/common/GoogleMapPickerModal';
 import { useAuthStore } from '../../stores/auth.store';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { Site } from '../../types/site';
+
 
 // Validation Schema for Site
 const siteSchema = z.object({
@@ -168,9 +170,11 @@ export default function SiteListPage() {
   // Dialog & Form State
   const [siteToEdit, setSiteToEdit] = useState<Site | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [siteToDeactivate, setSiteToDeactivate] = useState<Site | null>(null);
   const [siteToDelete, setSiteToDelete] = useState<Site | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [isDeactivating, setIsDeactivating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -335,7 +339,14 @@ export default function SiteListPage() {
     reverseGeocode(lat, lon);
   };
 
+  const handleSelectLocationFromPicker = (lat: number, lng: number, address: string) => {
+    setValue('latitude', lat, { shouldValidate: true, shouldDirty: true });
+    setValue('longitude', lng, { shouldValidate: true, shouldDirty: true });
+    setValue('address', address, { shouldValidate: true, shouldDirty: true });
+  };
+
   // Form Handlers
+
   const handleCreateClick = () => {
     reset({
       name: '',
@@ -945,6 +956,7 @@ export default function SiteListPage() {
                               }
                             }}
                             slotProps={{
+                              inputLabel: { shrink: true },
                               input: {
                                 sx: { borderRadius: 2 },
                                 endAdornment: (
@@ -955,7 +967,7 @@ export default function SiteListPage() {
                                       <Tooltip title="Search and pin on Map">
                                         <IconButton
                                           size="small"
-                                          onClick={() => geocodeCustomAddress(field.value || '')}
+                                          onClick={() => setIsMapPickerOpen(true)}
                                           sx={{ mr: 0.5 }}
                                         >
                                           <MapIcon fontSize="small" />
@@ -1009,6 +1021,7 @@ export default function SiteListPage() {
                                 helperText={errors.latitude?.message}
                                 slotProps={{
                                   htmlInput: { step: 'any' },
+                                  inputLabel: { shrink: true },
                                   input: { sx: { borderRadius: 2 } }
                                 }}
                                 onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
@@ -1032,6 +1045,7 @@ export default function SiteListPage() {
                                 helperText={errors.longitude?.message}
                                 slotProps={{
                                   htmlInput: { step: 'any' },
+                                  inputLabel: { shrink: true },
                                   input: { sx: { borderRadius: 2 } }
                                 }}
                                 onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
@@ -1042,6 +1056,8 @@ export default function SiteListPage() {
                       </Grid>
                     </AccordionDetails>
                   </Accordion>
+
+
 
                   {/* Leaflet Map Box */}
                   <Box
@@ -1183,6 +1199,16 @@ export default function SiteListPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <GoogleMapPickerModal
+        open={isMapPickerOpen}
+        onClose={() => setIsMapPickerOpen(false)}
+        onSelectLocation={handleSelectLocationFromPicker}
+        initialLat={watchLatitude}
+        initialLng={watchLongitude}
+        initialAddress={watch('address')}
+      />
     </Box>
   );
 }
+
