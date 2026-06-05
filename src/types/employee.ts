@@ -10,5 +10,6 @@ export interface Employee {
   role: EmployeeRole;
   status: EmployeeStatus;
   siteName?: string;
+  siteId?: string;
   joiningDate: string;
 }

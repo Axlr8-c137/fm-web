@@ -33,7 +33,7 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN'] },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE'] },
   { text: 'Employees', icon: <PeopleIcon />, path: '/employees', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { text: 'Sites', icon: <LocationIcon />, path: '/sites', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { text: 'Attendance', icon: <AttendanceIcon />, path: '/attendance', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
