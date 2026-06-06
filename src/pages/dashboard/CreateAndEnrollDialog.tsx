@@ -52,8 +52,11 @@ const basicInfoSchema = z.object({
   email: z.string().email('Enter a valid email address').optional().or(z.literal('')),
   phone: z
     .string()
-    .min(10, 'Phone must be at least 10 digits')
-    .regex(/^[0-9+\-\s()]+$/, 'Invalid phone number format'),
+    .min(1, 'Phone number is required')
+    .regex(
+      /^(\+91|91)?[6-9]\d{9}$/,
+      'Enter a valid phone number (e.g. +919876543210, 919876543210 or 9876543210)'
+    ),
   role: z.string().min(1, 'Role is required'),
   designation: z.string().optional(),
   joiningDate: z.date().refine((d) => d instanceof Date && !isNaN(d.getTime()), { message: 'Joining date is required' }),
@@ -337,8 +340,9 @@ export default function CreateAndEnrollDialog({
         </Grid>
         <Grid size={{ xs: 12, sm: 6 }}>
           <Controller name="phone" control={control} render={({ field }) => (
-            <TextField {...field} fullWidth label="Phone Number *" placeholder="+91 98765 43210" variant="outlined"
-              error={!!errors.phone} helperText={errors.phone?.message}
+            <TextField {...field} fullWidth label="Phone Number *" placeholder="+919876543210" variant="outlined"
+              error={!!errors.phone}
+              helperText={errors.phone?.message || 'Valid: +919876543210 · 919876543210 · 9876543210'}
               slotProps={{ input: { sx: { borderRadius: 2 } } }}
             />
           )} />
