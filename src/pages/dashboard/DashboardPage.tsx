@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import CreateAndEnrollDialog from './CreateAndEnrollDialog';
-import ratnamBg from '../../assets/ratnam.jpg';
+import ratnamBg from '../../assets/ratnam.png';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
@@ -414,39 +414,44 @@ export default function DashboardPage() {
           sx={{
             p: { xs: 3, sm: 4 },
             borderRadius: 4,
-            /* 
-               BACKGROUND IMAGE CONFIGURATION:
-               You can change the URL below to any custom background image.
-               The linear-gradient acts as an overlay to ensure text readability in both modes.
-            */
-            background: theme.palette.mode === 'dark'
-              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('${ratnamBg}')`
-              : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('${ratnamBg}')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            backgroundBlendMode: 'multiply',
-            color: 'primary.contrastText',
+            background: 'linear-gradient(135deg, #faf9f6 0%, #f4f0e6 35%, #e1ebe7 70%, #d2e4df 100%)',
+            color: '#0c342b',
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 8px 32px 0 rgba(0, 0, 0, 0.4)'
-              : '0 8px 32px 0 rgba(26, 115, 232, 0.25)',
-            transition: 'all 0.3s ease-in-out',
-            border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+            boxShadow: '0 12px 36px -8px rgba(12, 52, 43, 0.12), 0 4px 16px 0 rgba(0, 0, 0, 0.03)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            border: '1px solid rgba(12, 52, 43, 0.1)',
           }}
         >
-          <Box sx={{ position: 'relative', zIndex: 2, maxWidth: 650 }}>
+          {/* 40% image on right — crisp, perfectly fit, no overlay */}
+          <Box
+            component="img"
+            src={ratnamBg}
+            alt=""
+            sx={{
+              position: 'absolute',
+              right: { xs: 0, sm: '16px', md: '24px' },
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: { xs: '0%', sm: '40%' },
+              height: '85%',
+              objectFit: 'contain',
+              objectPosition: 'right center',
+              display: 'block',
+              pointerEvents: 'none',
+            }}
+          />
+          <Box sx={{ position: 'relative', zIndex: 2, maxWidth: { xs: '100%', sm: '58%' } }}>
             <Chip
               label="Employee Account Active"
               size="small"
               sx={{
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                color: '#fff',
+                backgroundColor: 'rgba(204, 164, 59, 0.12)',
+                color: '#9a7d23',
                 fontWeight: 700,
                 mb: 2,
                 backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(255,255,255,0.2)',
+                border: '1px solid rgba(204, 164, 59, 0.35)',
               }}
             />
             <Typography
@@ -456,43 +461,23 @@ export default function DashboardPage() {
               sx={{
                 fontSize: { xs: '1.8rem', sm: '2.4rem', md: '3rem' },
                 letterSpacing: '-1.5px',
-                lineHeight: 1.1
+                lineHeight: 1.1,
+                color: '#0c342b',
               }}
             >
               {getGreeting()}, {user?.name || 'User'}!
             </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, mt: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+            <Typography
+              variant="body1"
+              sx={{
+                color: '#24554a',
+                fontWeight: 500,
+                mt: 1,
+                fontSize: { xs: '0.9rem', sm: '1rem' }
+              }}
+            >
               Here is your professional employee console. Track your monthly disbursements, download signed compliance payslips, and check historical wage parameters.
             </Typography>
-          </Box>
-
-          {/* Glowing blur effects */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '-30%',
-              right: '-10%',
-              width: 300,
-              height: 300,
-              borderRadius: '50%',
-              background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)',
-              filter: 'blur(30px)',
-              pointerEvents: 'none',
-            }}
-          />
-          <Box
-            sx={{
-              position: 'absolute',
-              bottom: '-20%',
-              right: '10%',
-              fontSize: '15rem',
-              opacity: 0.08,
-              transform: 'rotate(15deg)',
-              pointerEvents: 'none',
-              zIndex: 1,
-            }}
-          >
-            <PayrollIcon fontSize="inherit" />
           </Box>
         </Paper>
 
@@ -816,42 +801,47 @@ export default function DashboardPage() {
         sx={{
           p: { xs: 3, sm: 4 },
           borderRadius: 4,
-          /* 
-             BACKGROUND IMAGE CONFIGURATION:
-             You can change the URL below to any custom background image.
-             The linear-gradient acts as an overlay to ensure text readability in both modes.
-          */
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('${ratnamBg}')`
-            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('${ratnamBg}')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundBlendMode: 'multiply',
-          color: 'primary.contrastText',
+          background: 'linear-gradient(135deg, #faf9f6 0%, #f4f0e6 35%, #e1ebe7 70%, #d2e4df 100%)',
+          color: '#0c342b',
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 8px 32px 0 rgba(0, 0, 0, 0.4)'
-            : '0 8px 32px 0 rgba(26, 115, 232, 0.25)',
-          transition: 'all 0.3s ease-in-out',
-          border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
+          boxShadow: '0 12px 36px -8px rgba(12, 52, 43, 0.12), 0 4px 16px 0 rgba(0, 0, 0, 0.03)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          border: '1px solid rgba(12, 52, 43, 0.1)',
         }}
       >
-        <Box sx={{ position: 'relative', zIndex: 2 }}>
+        {/* 40% image on right — crisp, perfectly fit, no overlay */}
+        <Box
+          component="img"
+          src={ratnamBg}
+          alt=""
+          sx={{
+            position: 'absolute',
+            right: { xs: 0, sm: '16px', md: '24px' },
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: { xs: '0%', sm: '40%' },
+            height: '85%',
+            objectFit: 'contain',
+            objectPosition: 'right center',
+            display: 'block',
+            pointerEvents: 'none',
+          }}
+        />
+        <Box sx={{ position: 'relative', zIndex: 2, maxWidth: { xs: '100%', sm: '58%' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'rgba(255, 255, 255, 0.2)', width: 36, height: 36 }}>
-              <AdminIcon fontSize="small" />
+            <Avatar sx={{ bgcolor: 'rgba(204, 164, 59, 0.12)', color: '#9a7d23', width: 36, height: 36 }}>
+              <AdminIcon fontSize="small" color="inherit" />
             </Avatar>
             <Chip
               label={user?.role?.replace('_', ' ') || 'MANAGEMENT CONSOLE'}
               size="small"
               sx={{
-                backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                color: '#fff',
+                backgroundColor: 'rgba(204, 164, 59, 0.12)',
+                color: '#9a7d23',
                 fontWeight: 700,
                 backdropFilter: 'blur(4px)',
-                border: '1px solid rgba(255,255,255,0.2)',
+                border: '1px solid rgba(204, 164, 59, 0.35)',
               }}
             />
           </Box>
@@ -862,12 +852,21 @@ export default function DashboardPage() {
             sx={{
               fontSize: { xs: '1.8rem', sm: '2.4rem', md: '3rem' },
               letterSpacing: '-1.5px',
-              lineHeight: 1.1
+              lineHeight: 1.1,
+              color: '#0c342b',
             }}
           >
             {getGreeting()}, {user?.name || 'Administrator'}!
           </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, maxWidth: 800, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: '#24554a',
+              fontWeight: 500,
+              maxWidth: 800,
+              fontSize: { xs: '0.9rem', sm: '1rem' }
+            }}
+          >
             Manage workforce operations, monitor attendance geofence telemetry in real-time, configure statutory compliance structures, and disburse site payrolls.
           </Typography>
 
@@ -876,10 +875,13 @@ export default function DashboardPage() {
             <Button
               variant="outlined"
               sx={{
-                borderColor: 'rgba(255,255,255,0.5)',
-                color: '#fff',
+                borderColor: 'rgba(12, 52, 43, 0.35)',
+                color: '#0c342b',
                 fontWeight: 700,
-                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:hover': {
+                  borderColor: '#0c342b',
+                  bgcolor: 'rgba(12, 52, 43, 0.05)'
+                },
                 borderRadius: 2,
                 px: 3,
                 textTransform: 'none',
@@ -891,12 +893,16 @@ export default function DashboardPage() {
             <Button
               variant="outlined"
               sx={{
-                borderColor: 'rgba(255,255,255,0.5)',
-                color: '#fff',
+                borderColor: 'rgba(12, 52, 43, 0.35)',
+                color: '#0c342b',
                 fontWeight: 700,
-                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:hover': {
+                  borderColor: '#0c342b',
+                  bgcolor: 'rgba(12, 52, 43, 0.05)'
+                },
                 borderRadius: 2,
                 px: 3,
+                textTransform: 'none',
               }}
               onClick={() => navigate('/employees/onboard')}
             >
@@ -905,12 +911,16 @@ export default function DashboardPage() {
             <Button
               variant="outlined"
               sx={{
-                borderColor: 'rgba(255,255,255,0.5)',
-                color: '#fff',
+                borderColor: 'rgba(12, 52, 43, 0.35)',
+                color: '#0c342b',
                 fontWeight: 700,
-                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
+                '&:hover': {
+                  borderColor: '#0c342b',
+                  bgcolor: 'rgba(12, 52, 43, 0.05)'
+                },
                 borderRadius: 2,
                 px: 3,
+                textTransform: 'none',
               }}
               onClick={() => navigate('/sites')}
             >
