@@ -915,16 +915,12 @@ export default function DashboardPage() {
           {/* Quick Action Buttons on Hero */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 3 }}>
             <Button
-              variant="contained"
+              variant="outlined"
               sx={{
-                bgcolor: '#ffffff',
-                color: '#0a192f', // Rich high-contrast dark text
-                fontWeight: 800,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                '&:hover': { 
-                  bgcolor: 'rgba(255,255,255,0.95)',
-                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
-                },
+                borderColor: 'rgba(255,255,255,0.5)',
+                color: '#fff',
+                fontWeight: 700,
+                '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,0.08)' },
                 borderRadius: 2,
                 px: 3,
                 textTransform: 'none',
