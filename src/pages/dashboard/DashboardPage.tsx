@@ -453,13 +453,28 @@ export default function DashboardPage() {
         <Paper
           elevation={0}
           sx={{
-            p: 4,
+            p: { xs: 3, sm: 4 },
             borderRadius: 4,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+            /* 
+               BACKGROUND IMAGE CONFIGURATION:
+               You can change the URL below to any custom background image.
+               The linear-gradient acts as an overlay to ensure text readability in both modes.
+            */
+            background: theme.palette.mode === 'dark'
+              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`
+              : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+            backgroundBlendMode: 'multiply',
             color: 'primary.contrastText',
             position: 'relative',
             overflow: 'hidden',
-            boxShadow: '0 8px 32px 0 rgba(26, 115, 232, 0.2)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px 0 rgba(0, 0, 0, 0.4)'
+              : '0 8px 32px 0 rgba(26, 115, 232, 0.25)',
+            transition: 'all 0.3s ease-in-out',
+            border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
           }}
         >
           <Box sx={{ position: 'relative', zIndex: 2, maxWidth: 650 }}>
@@ -475,10 +490,19 @@ export default function DashboardPage() {
                 border: '1px solid rgba(255,255,255,0.2)',
               }}
             />
-            <Typography variant="h3" fontWeight={900} gutterBottom sx={{ letterSpacing: '-1.5px', lineHeight: 1.1 }}>
-              {getGreeting()}, {user?.name}!
+            <Typography
+              variant="h3"
+              fontWeight={900}
+              gutterBottom
+              sx={{
+                fontSize: { xs: '1.8rem', sm: '2.4rem', md: '3rem' },
+                letterSpacing: '-1.5px',
+                lineHeight: 1.1
+              }}
+            >
+              {getGreeting()}, {user?.name || 'User'}!
             </Typography>
-            <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, mt: 1 }}>
+            <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, mt: 1, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
               Here is your professional employee console. Track your monthly disbursements, download signed compliance payslips, and check historical wage parameters.
             </Typography>
           </Box>
@@ -831,13 +855,28 @@ export default function DashboardPage() {
       <Paper
         elevation={0}
         sx={{
-          p: 4,
+          p: { xs: 3, sm: 4 },
           borderRadius: 4,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+          /* 
+             BACKGROUND IMAGE CONFIGURATION:
+             You can change the URL below to any custom background image.
+             The linear-gradient acts as an overlay to ensure text readability in both modes.
+          */
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`
+            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundBlendMode: 'multiply',
           color: 'primary.contrastText',
           position: 'relative',
           overflow: 'hidden',
-          boxShadow: '0 8px 32px 0 rgba(26, 115, 232, 0.2)',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px 0 rgba(0, 0, 0, 0.4)'
+            : '0 8px 32px 0 rgba(26, 115, 232, 0.25)',
+          transition: 'all 0.3s ease-in-out',
+          border: `1px solid ${alpha(theme.palette.common.white, 0.1)}`,
         }}
       >
         <Box sx={{ position: 'relative', zIndex: 2 }}>
@@ -857,10 +896,19 @@ export default function DashboardPage() {
               }}
             />
           </Box>
-          <Typography variant="h3" fontWeight={900} gutterBottom sx={{ letterSpacing: '-1.5px', lineHeight: 1.1 }}>
-            {getGreeting()}, Administrator!
+          <Typography
+            variant="h3"
+            fontWeight={900}
+            gutterBottom
+            sx={{
+              fontSize: { xs: '1.8rem', sm: '2.4rem', md: '3rem' },
+              letterSpacing: '-1.5px',
+              lineHeight: 1.1
+            }}
+          >
+            {getGreeting()}, {user?.name || 'Administrator'}!
           </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, maxWidth: 800 }}>
+          <Typography variant="body1" sx={{ opacity: 0.9, fontWeight: 500, maxWidth: 800, fontSize: { xs: '0.9rem', sm: '1rem' } }}>
             Manage workforce operations, monitor attendance geofence telemetry in real-time, configure statutory compliance structures, and disburse site payrolls.
           </Typography>
 
