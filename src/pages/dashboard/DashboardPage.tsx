@@ -917,12 +917,17 @@ export default function DashboardPage() {
             <Button
               variant="contained"
               sx={{
-                bgcolor: '#fff',
-                color: 'primary.main',
-                fontWeight: 700,
-                '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
+                bgcolor: '#ffffff',
+                color: '#0a192f', // Rich high-contrast dark text
+                fontWeight: 800,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                '&:hover': { 
+                  bgcolor: 'rgba(255,255,255,0.95)',
+                  boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+                },
                 borderRadius: 2,
                 px: 3,
+                textTransform: 'none',
               }}
               onClick={() => navigate('/payroll')}
             >
