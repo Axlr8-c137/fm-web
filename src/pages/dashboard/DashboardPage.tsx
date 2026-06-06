@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CreateAndEnrollDialog from './CreateAndEnrollDialog';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
@@ -182,11 +183,6 @@ export default function DashboardPage() {
   const [selectedEnrollEmpId, setSelectedEnrollEmpId] = useState('');
 
   const [isCreateEnrollOpen, setIsCreateEnrollOpen] = useState(false);
-  const [newEmpFirstName, setNewEmpFirstName] = useState('');
-  const [newEmpLastName, setNewEmpLastName] = useState('');
-  const [newEmpEmail, setNewEmpEmail] = useState('');
-  const [newEmpPhone, setNewEmpPhone] = useState('');
-  const [newEmpRole, setNewEmpRole] = useState('EMPLOYEE');
 
   const currentDate = new Date();
   const defaultMonth = currentDate.getMonth() + 1;
@@ -405,45 +401,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Mutate/Handler: Onboard & Enroll New Employee
-  const handleCreateAndEnroll = async () => {
-    if (!selectedSiteId || !newEmpFirstName || !newEmpLastName || !newEmpPhone) {
-      alert('Please fill out all required fields (First Name, Last Name, and Phone).');
-      return;
-    }
-    try {
-      const orgId = selectedSite?.organizationId || user?.organizationId;
-      if (!orgId) {
-        alert('Could not determine organization scoping for employee.');
-        return;
-      }
-
-      const payload = {
-        fullName: `${newEmpFirstName} ${newEmpLastName}`,
-        email: newEmpEmail || undefined,
-        phone: newEmpPhone,
-        role: newEmpRole,
-        status: 'ACTIVE',
-        joiningDate: new Date().toISOString(),
-        organizationId: orgId,
-        siteId: selectedSiteId,
-      };
-
-      await EmployeeService.createEmployee(payload);
-      queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-sites'] });
-
-      // Clear form states
-      setNewEmpFirstName('');
-      setNewEmpLastName('');
-      setNewEmpEmail('');
-      setNewEmpPhone('');
-      setNewEmpRole('EMPLOYEE');
-      setIsCreateEnrollOpen(false);
-    } catch (err: any) {
-      alert('Failed to onboard and enroll employee: ' + (err?.message || err));
-    }
-  };
+  // Mutate/Handler: Create & Enroll — handled by the dedicated dialog component
 
   // EMPLOYEE VIEW
   if (isEmployee) {
@@ -1862,75 +1820,17 @@ export default function DashboardPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog: Onboard & Enroll New Employee */}
-      <Dialog open={isCreateEnrollOpen} onClose={() => setIsCreateEnrollOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 800 }}>Onboard & Enroll New Employee</DialogTitle>
-        <DialogContent dividers>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Register a new employee in the system database and automatically enroll them at <strong>{selectedSite?.name}</strong>.
-          </Typography>
-          <Grid container spacing={2}>
-            <Grid size={{ xs: 6 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="First Name"
-                value={newEmpFirstName}
-                onChange={(e) => setNewEmpFirstName(e.target.value)}
-                required
-              />
-            </Grid>
-            <Grid size={{ xs: 6 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Last Name"
-                value={newEmpLastName}
-                onChange={(e) => setNewEmpLastName(e.target.value)}
-                required
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Phone Number"
-                value={newEmpPhone}
-                onChange={(e) => setNewEmpPhone(e.target.value)}
-                required
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Email Address (Optional)"
-                value={newEmpEmail}
-                onChange={(e) => setNewEmpEmail(e.target.value)}
-              />
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel id="create-emp-role-label">System Role</InputLabel>
-                <Select
-                  labelId="create-emp-role-label"
-                  value={newEmpRole}
-                  label="System Role"
-                  onChange={(e: any) => setNewEmpRole(e.target.value)}
-                >
-                  <MenuItem value="EMPLOYEE">Employee</MenuItem>
-                  <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
-                  <MenuItem value="ADMIN">Admin</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ p: 2.5 }}>
-          <Button onClick={() => setIsCreateEnrollOpen(false)} sx={{ fontWeight: 700 }}>Cancel</Button>
-          <Button onClick={handleCreateAndEnroll} variant="contained" sx={{ fontWeight: 700, borderRadius: 2 }}>Onboard & Enroll</Button>
-        </DialogActions>
-      </Dialog>
+      {/* Dialog: Onboard & Enroll New Employee — full-featured stepper dialog */}
+      <CreateAndEnrollDialog
+        open={isCreateEnrollOpen}
+        onClose={() => setIsCreateEnrollOpen(false)}
+        selectedSiteId={selectedSiteId}
+        selectedSiteName={selectedSite?.name || ''}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+          queryClient.invalidateQueries({ queryKey: ['admin-sites'] });
+        }}
+      />
     </Box>
   );
 }
