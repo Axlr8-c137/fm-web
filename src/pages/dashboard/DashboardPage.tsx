@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import CreateAndEnrollDialog from './CreateAndEnrollDialog';
+import ratnamBg from '../../assets/ratnam.jpg';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Box,
@@ -419,8 +420,8 @@ export default function DashboardPage() {
                The linear-gradient acts as an overlay to ensure text readability in both modes.
             */
             background: theme.palette.mode === 'dark'
-              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`
-              : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`,
+              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('${ratnamBg}')`
+              : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('${ratnamBg}')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat',
@@ -821,8 +822,8 @@ export default function DashboardPage() {
              The linear-gradient acts as an overlay to ensure text readability in both modes.
           */
           background: theme.palette.mode === 'dark'
-            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`
-            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop')`,
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.85)} 0%, ${alpha('#0a192f', 0.9)} 100%), url('${ratnamBg}')`
+            : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.primary.dark, 0.85)} 100%), url('${ratnamBg}')`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
