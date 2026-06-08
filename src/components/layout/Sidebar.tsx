@@ -69,22 +69,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'perm
                   if (onClose) onClose();
                 }}
                 selected={isActive}
-                sx={{
+                sx={(theme) => ({
                   minHeight: 48,
                   justifyContent: open ? 'initial' : 'center',
                   px: 2.5,
                   borderRadius: 2,
                   '&.Mui-selected': {
                     backgroundColor: 'primary.light',
-                    color: 'primary.main',
+                    color: theme.palette.mode === 'light' ? 'primary.main' : '#000000',
                     '& .MuiListItemIcon-root': {
-                      color: 'primary.main',
+                      color: theme.palette.mode === 'light' ? 'primary.main' : '#000000',
                     },
                     '&:hover': {
                       backgroundColor: 'primary.light',
                     }
                   },
-                }}
+                })}
               >
                 <ListItemIcon
                   sx={{
