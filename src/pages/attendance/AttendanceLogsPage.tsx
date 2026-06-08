@@ -914,13 +914,15 @@ export default function AttendanceLogsPage() {
                         render={({ field }) => (
                           <TextField
                             {...field}
+                            value={field.value ?? ''}
                             fullWidth
                             type="number"
                             label="Latitude Override"
                             variant="outlined"
                             slotProps={{
                               htmlInput: { step: 'any' },
-                              input: { sx: { borderRadius: 2 } }
+                              input: { sx: { borderRadius: 2 } },
+                              inputLabel: { shrink: true }
                             }}
                           />
                         )}
@@ -933,13 +935,15 @@ export default function AttendanceLogsPage() {
                         render={({ field }) => (
                           <TextField
                             {...field}
+                            value={field.value ?? ''}
                             fullWidth
                             type="number"
                             label="Longitude Override"
                             variant="outlined"
                             slotProps={{
                               htmlInput: { step: 'any' },
-                              input: { sx: { borderRadius: 2 } }
+                              input: { sx: { borderRadius: 2 } },
+                              inputLabel: { shrink: true }
                             }}
                           />
                         )}

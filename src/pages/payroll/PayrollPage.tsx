@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
 import { format } from 'date-fns';
+import logoImg from '../../assets/FM-LOGO.jpeg';
 
 // Types
 import type { Employee } from '../../types/employee';
@@ -1330,14 +1331,14 @@ export default function PayrollPage() {
           paper: { 
             sx: { 
               borderRadius: 3, 
-              backgroundColor: '#f8f9fa',
+              backgroundColor: theme.palette.background.default,
               backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(220, 53, 69, 0.03), transparent 250px)',
               boxShadow: '0 24px 48px rgba(0,0,0,0.12)'
             } 
           } 
         }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid', borderColor: 'divider', backgroundColor: '#fff' }}>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid', borderColor: 'divider', backgroundColor: theme.palette.background.paper }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <PayrollIcon color="primary" sx={{ fontSize: 28 }} />
             <Box>
@@ -1375,25 +1376,33 @@ export default function PayrollPage() {
               sx={{ 
                 p: 4, 
                 borderRadius: 2, 
-                backgroundColor: '#ffffff', 
-                border: '1px solid #e0e0e0',
+                backgroundColor: theme.palette.background.paper, 
+                border: '1px solid',
+                borderColor: 'divider',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
                 fontFamily: 'Roboto, Inter, sans-serif'
               }}
             >
               {/* Header Branding */}
-              <Box sx={{ textAlign: 'center', mb: 3 }}>
-                <Typography variant="caption" sx={{ color: '#dc3545', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' }}>
-                  Name of Company - Ratnamohan
-                </Typography>
-                <Typography variant="h3" sx={{ color: '#dc3545', fontWeight: 900, mt: 0.5, letterSpacing: '2px', lineHeight: 1.1 }}>
-                  RATNAMOHAN
-                </Typography>
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <Box 
+                  component="img" 
+                  src={logoImg} 
+                  alt="Ratnamohan Logo" 
+                  sx={{ 
+                    height: 55, 
+                    objectFit: 'contain',
+                    backgroundColor: '#ffffff',
+                    padding: '4px 12px',
+                    borderRadius: '8px',
+                    boxShadow: theme.palette.mode === 'dark' ? '0 2px 8px rgba(255, 255, 255, 0.05)' : 'none',
+                  }} 
+                />
               </Box>
 
               {/* Pay Slip Period */}
-              <Box sx={{ borderBottom: '2px solid #333', pb: 1, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#333' }}>
+              <Box sx={{ borderBottom: '2px solid', borderBottomColor: theme.palette.text.primary, pb: 1, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>
                   Pay Slip for : <span style={{ color: '#dc3545' }}>Month of - {MONTH_NAMES[form.month]} {form.year}</span>
                 </Typography>
                 <Typography variant="caption" color="text.secondary" fontWeight={700}>
@@ -1593,10 +1602,10 @@ export default function PayrollPage() {
               </Grid>
 
               {/* Earnings & Deductions Tables (Side by Side) */}
-              <Grid container spacing={0} sx={{ border: '1px solid #ccc', borderBottom: 'none' }}>
+              <Grid container spacing={0} sx={{ border: '1px solid', borderColor: 'divider', borderBottom: 'none' }}>
                 {/* Left Panel: Earnings */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{ borderRight: { md: '1px solid #ccc' } }}>
-                  <Box sx={{ p: 1, backgroundColor: '#f5f5f5', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+                <Grid size={{ xs: 12, md: 6 }} sx={{ borderRight: { md: `1px solid ${theme.palette.divider}` } }}>
+                  <Box sx={{ p: 1, backgroundColor: theme.palette.action.hover, borderBottom: '1px solid', borderBottomColor: 'divider', display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="subtitle2" fontWeight={800}>Earnings</Typography>
                     <Typography variant="subtitle2" fontWeight={800}>Amount</Typography>
                   </Box>
@@ -1678,7 +1687,7 @@ export default function PayrollPage() {
 
                 {/* Right Panel: Deductions */}
                 <Grid size={{ xs: 12, md: 6 }}>
-                  <Box sx={{ p: 1, backgroundColor: '#f5f5f5', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+                  <Box sx={{ p: 1, backgroundColor: theme.palette.action.hover, borderBottom: '1px solid', borderBottomColor: 'divider', display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="subtitle2" fontWeight={800}>Deductions</Typography>
                     <Typography variant="subtitle2" fontWeight={800}>Amount</Typography>
                   </Box>
@@ -1753,12 +1762,12 @@ export default function PayrollPage() {
               </Grid>
 
               {/* Totals Section */}
-              <Grid container spacing={0} sx={{ border: '1px solid #ccc', backgroundColor: '#fcfcfc', py: 1.5, px: 2 }}>
-                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid #ddd' }}>
+              <Grid container spacing={0} sx={{ border: '1px solid', borderColor: 'divider', backgroundColor: theme.palette.background.default, py: 1.5, px: 2 }}>
+                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid', borderRightColor: 'divider' }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={700}>GROSS EARNING</Typography>
                   <Typography variant="subtitle1" fontWeight={850} color="success.main">{INR(liveCalculations.gross)}</Typography>
                 </Grid>
-                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid #ddd', pl: 2 }}>
+                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid', borderRightColor: 'divider', pl: 2 }}>
                   <Typography variant="caption" color="text.secondary" fontWeight={700}>TOTAL DEDUCTION</Typography>
                   <Typography variant="subtitle1" fontWeight={850} color="error.main">
                     {INR(liveCalculations.pfEmployee + liveCalculations.esicEmployee + liveCalculations.ptAmount + liveCalculations.mlwfAmount)}
@@ -1785,7 +1794,7 @@ export default function PayrollPage() {
             </Paper>
           </DialogContent>
 
-          <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', backgroundColor: '#fff' }}>
+          <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', backgroundColor: theme.palette.background.paper }}>
             <Button onClick={() => setConfigOpen(false)} color="inherit" disabled={savingStructure}>
               Cancel
             </Button>
