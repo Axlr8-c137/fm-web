@@ -184,7 +184,8 @@ export default function AttendanceLogsPage() {
     }
   }, [filterDatePreset]);
 
-  // Queries
+  // Queries — fetch ALL logs for the selected date range
+  // Backend PageRequestDto: page is 1-indexed, limit max = 100
   const { data, isLoading } = useQuery({
     queryKey: ['attendance-logs', dateRangeParams],
     queryFn: () => AttendanceService.getLogs({
@@ -205,10 +206,32 @@ export default function AttendanceLogsPage() {
     queryFn: () => SiteService.getSites(),
   });
 
-  const rawLogs = useMemo(() => ((data as any)?.data || []) as any[], [data]);
-  const employees = useMemo(() => (employeesData as any)?.data || [], [employeesData]);
-  const sites = useMemo(() => sitesData?.data || [], [sitesData]);
+  // Backend returns ApiResponse<List> — interceptor unwraps res.data → { success, data: [...], meta }
+  // So 'data' here is { success, data: AttendanceLogDto[], meta }
+  const rawLogs = useMemo(() => {
+    const payload = data as any;
+    // Handle both: paginated { data: [...] } and direct array
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [data]) as any[];
+
+  const employees = useMemo(() => {
+    const payload = employeesData as any;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [employeesData]);
+
+  const sites = useMemo(() => {
+    const payload = sitesData as any;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [sitesData]);
+
   const sitesMap = useMemo(() => Object.fromEntries(sites.map((s: any) => [s.id, s])), [sites]);
+
 
   // Sync manual coordinate default when site changes
   useEffect(() => {

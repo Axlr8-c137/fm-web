@@ -8,16 +8,18 @@ export const AttendanceService = {
     employeeId?: string;
     start?: string;
     end?: string;
-    page?: number;
-    limit?: number;
+    page?: number;   // 1-indexed (backend PageRequestDto is 1-based)
+    limit?: number;  // max 100 (backend enforces @Max(100))
   }) => {
     const queryParams = new URLSearchParams();
     if (params.siteId) queryParams.append('siteId', params.siteId);
     if (params.employeeId) queryParams.append('employeeId', params.employeeId);
     if (params.start) queryParams.append('start', params.start);
     if (params.end) queryParams.append('end', params.end);
-    if (params.page !== undefined) queryParams.append('page', params.page.toString());
-    if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
+
+    // Backend PageRequestDto uses 'page' (1-indexed) and 'limit' (max 100)
+    queryParams.append('page', String(Math.max(1, params.page ?? 1)));
+    queryParams.append('limit', String(Math.min(100, params.limit ?? 100)));
 
     return apiClient.get<ApiResponse<AttendanceLog[]>>(`/attendance/logs?${queryParams.toString()}`);
   },
@@ -45,7 +47,7 @@ export const AttendanceService = {
   exportAttendance: async (entity: 'ATTENDANCE' | 'EMPLOYEES' | 'SITES', filters: any) => {
     return apiClient.post<ApiResponse<{ downloadUrl: string }>>(`/admin/export/${entity}`, filters);
   },
-  
+
   createManualLog: async (data: any) => {
     return apiClient.post<ApiResponse<AttendanceLog>>('/attendance/logs', data);
   },

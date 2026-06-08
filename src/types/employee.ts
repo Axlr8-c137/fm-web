@@ -43,4 +43,23 @@ export interface Employee {
   termsAndConditionsAccepted?: boolean;
   aadhaar?: string;
   pan?: string;
+  enrollmentDate?: string;
+  gender?: string;
+  dob?: string;
+  dateOfBirth?: string;
+  maritalStatus?: string;
+  bloodGroup?: string;
+  heightFeet?: number;
+  heightInches?: number;
+  weightKg?: number;
+  education?: string;
+  languagesKnown?: string;
+  emergencyContactNumber?: string;
+  policeVerificationStatus?: boolean;
+  form11Number?: string;
+  residentialProofStatus?: boolean;
+  residentialAddress?: string;
+  termsAndConditionsAccepted?: boolean;
+  hasFaceRegistered?: boolean;
+  documents?: any[];
 }
