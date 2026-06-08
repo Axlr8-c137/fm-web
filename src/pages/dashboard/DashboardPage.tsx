@@ -97,82 +97,6 @@ const INR = (v: number | string | undefined | null) => {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
 };
 
-const formatTime = (isoString: string | null | undefined) => {
-  if (!isoString) return '—';
-  try {
-    const date = new Date(isoString);
-    return date.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'Asia/Kolkata'
-    });
-  } catch (e) {
-    return '—';
-  }
-};
-
-const consolidateAttendance = (logs: any[]) => {
-  if (!logs || logs.length === 0) return [];
-  
-  const map = new Map<string, {
-    id: string;
-    employeeName: string;
-    checkInTime: Date | null;
-    checkOutTime: Date | null;
-    checkIn: string;
-    checkOut: string;
-    status: 'PRESENT' | 'ABSENT' | 'LATE';
-    workHours: number;
-  }>();
-
-  logs.forEach((log: any) => {
-    const empId = log.employeeId;
-    if (!empId) return;
-
-    if (!map.has(empId)) {
-      map.set(empId, {
-        id: empId,
-        employeeName: log.employeeName || 'Unknown Employee',
-        checkInTime: null,
-        checkOutTime: null,
-        checkIn: '—',
-        checkOut: '—',
-        status: 'PRESENT',
-        workHours: 0,
-      });
-    }
-
-    const record = map.get(empId)!;
-    const punchTimeDate = new Date(log.punchTime);
-
-    if (log.punchType === 'IN') {
-      if (!record.checkInTime || punchTimeDate < record.checkInTime) {
-        record.checkInTime = punchTimeDate;
-        record.checkIn = formatTime(log.punchTime);
-      }
-    } else if (log.punchType === 'OUT') {
-      if (!record.checkOutTime || punchTimeDate > record.checkOutTime) {
-        record.checkOutTime = punchTimeDate;
-        record.checkOut = formatTime(log.punchTime);
-      }
-    }
-  });
-
-  // Calculate work hours for each employee record
-  map.forEach((record) => {
-    if (record.checkInTime && record.checkOutTime) {
-      const diffMs = record.checkOutTime.getTime() - record.checkInTime.getTime();
-      if (diffMs > 0) {
-        const diffHrs = diffMs / (1000 * 60 * 60);
-        record.workHours = Math.round(diffHrs * 10) / 10; // Round to 1 decimal place
-      }
-    }
-  });
-
-  return Array.from(map.values());
-};
-
 const createMarkerIcon = (color: string) => {
   const markerHtml = `
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -344,8 +268,7 @@ export default function DashboardPage() {
   );
 
   const selectedSite = sites.find((s: any) => s.id === selectedSiteId);
-  const rawSiteAttendance: any[] = (siteAttendanceResponse as any)?.data || [];
-  const siteAttendance = React.useMemo(() => consolidateAttendance(rawSiteAttendance), [rawSiteAttendance]);
+  const siteAttendance: any[] = (siteAttendanceResponse as any)?.data || [];
   const sitePayrollPreview: any[] = (sitePayrollPreviewResponse as any)?.data || [];
 
   // Generate pie chart data

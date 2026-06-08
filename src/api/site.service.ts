@@ -10,7 +10,7 @@ const mapSiteResponse = (raw: any): Site => ({
   longitude: raw.longitude,
   radius: raw.geofenceRadius || raw.radius || 0,
   status: (raw.isActive !== undefined ? raw.isActive : raw.active) ? 'ACTIVE' : 'INACTIVE',
-  isPayrollVisible: raw.isPayrollVisible || false,
+  isPayrollVisible: raw.isPayrollVisible !== undefined ? raw.isPayrollVisible : (raw.payrollVisible || false),
   supervisorName: raw.supervisorName,
   employeeCount: raw.employeeCount,
   clientName: raw.clientName,

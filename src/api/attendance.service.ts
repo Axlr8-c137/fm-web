@@ -9,7 +9,7 @@ export const AttendanceService = {
     start?: string;
     end?: string;
     page?: number;
-    limit?: number;
+    size?: number;
   }) => {
     const queryParams = new URLSearchParams();
     if (params.siteId) queryParams.append('siteId', params.siteId);
@@ -17,7 +17,7 @@ export const AttendanceService = {
     if (params.start) queryParams.append('start', params.start);
     if (params.end) queryParams.append('end', params.end);
     if (params.page !== undefined) queryParams.append('page', params.page.toString());
-    if (params.limit !== undefined) queryParams.append('limit', params.limit.toString());
+    if (params.size !== undefined) queryParams.append('size', params.size.toString());
 
     return apiClient.get<ApiResponse<AttendanceLog[]>>(`/attendance/logs?${queryParams.toString()}`);
   },

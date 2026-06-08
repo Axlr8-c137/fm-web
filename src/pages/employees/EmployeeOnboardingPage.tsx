@@ -197,7 +197,7 @@ export default function EmployeeOnboardingPage() {
         phone: data.phone,
         role: data.role,
         status: 'ACTIVE',
-        enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
+        joiningDate: data.joiningDate.toISOString(),
         organizationId: selectedOrgId,
       };
       // Only include siteId if one was selected

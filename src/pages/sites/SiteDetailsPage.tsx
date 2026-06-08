@@ -30,6 +30,7 @@ import {
   AccordionDetails,
   Autocomplete,
   Tooltip,
+  Avatar,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -59,6 +60,8 @@ const MarkerAny = Marker as any;
 const CircleAny = Circle as any;
 import { SiteService } from '../../api/site.service';
 import { EmployeeService } from '../../api/employee.service';
+import { AttendanceService } from '../../api/attendance.service';
+import apiClient from '../../api/client';
 import { LoadingScreen } from '../../components/common/LoadingScreen';
 import { DataTable } from '../../components/common/DataTable';
 import { GoogleMapPickerModal } from '../../components/common/GoogleMapPickerModal';
@@ -195,7 +198,7 @@ export default function SiteDetailsPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const queryClient = useQueryClient();
-  
+
   const [tabValue, setTabValue] = useState(0);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -223,72 +226,6 @@ export default function SiteDetailsPage() {
   const watchLat = watchLatitude || 18.5204;
   const watchLng = watchLongitude || 73.8567;
   const watchRad = watchRadius || 150;
-
-  // Queries
-  const { data: siteData, isLoading: isSiteLoading } = useQuery({
-    queryKey: ['site', id],
-    queryFn: () => SiteService.getSiteById(id!),
-    enabled: !!id,
-  });
-
-  const { data: employeesData, isLoading: isEmployeesLoading } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => EmployeeService.getEmployees(),
-  });
-
-  if (isSiteLoading || isEmployeesLoading) return <LoadingScreen />;
-
-  const rawSite = siteData?.data;
-  const employees = (employeesData as any)?.data || [];
-
-  if (!rawSite) {
-    return (
-      <Box sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h5" sx={{ mb: 2 }}>Site not found</Typography>
-        <Button onClick={() => navigate('/sites')} startIcon={<BackIcon />} variant="contained">
-          Back to Sites
-        </Button>
-      </Box>
-    );
-  }
-
-  // Filter employees for this site
-  const siteEmployees = employees.filter((emp: any) => emp.siteId === rawSite.id);
-  const activeEmployees = siteEmployees.filter((emp: any) => emp.status === 'ACTIVE');
-  const supervisor = siteEmployees.find((emp: any) => emp.role === 'SUPERVISOR');
-  
-  const supervisors = employees.filter((emp: any) => emp.role === 'SUPERVISOR');
-
-  const site = {
-    ...rawSite,
-    employeeCount: activeEmployees.length,
-    supervisorName: supervisor ? supervisor.fullName : 'Unassigned',
-    supervisorId: supervisor ? supervisor.id : '',
-  };
-
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
-  const handleEditClick = () => {
-    reset({
-      name: site.name,
-      address: site.address || '',
-      latitude: site.latitude || undefined,
-      longitude: site.longitude || undefined,
-      radius: site.radius || 150,
-      supervisorId: site.supervisorId || '',
-      status: site.status,
-      isPayrollVisible: site.isPayrollVisible || false,
-    });
-    setApiError(null);
-    setIsEditOpen(true);
-  };
-
-  const handleCloseEdit = () => {
-    setIsEditOpen(false);
-    setApiError(null);
-  };
 
   // Geocoding and Map helpers
   React.useEffect(() => {
@@ -332,6 +269,90 @@ export default function SiteDetailsPage() {
 
   const lastGeocodedAddressRef = React.useRef('');
 
+  // Queries
+  const { data: siteData, isLoading: isSiteLoading } = useQuery({
+    queryKey: ['site', id],
+    queryFn: () => SiteService.getSiteById(id!),
+    enabled: !!id,
+  });
+
+  const { data: employeesData, isLoading: isEmployeesLoading } = useQuery({
+    queryKey: ['employees'],
+    queryFn: () => EmployeeService.getEmployees(),
+  });
+
+  const { data: siteAttendanceData, isLoading: isSiteAttendanceLoading } = useQuery({
+    queryKey: ['site-attendance', id],
+    queryFn: () => AttendanceService.getTodayAttendance(id!),
+    enabled: !!id,
+  });
+
+  const { data: siteUpdatesResponse, isLoading: isSiteUpdatesLoading } = useQuery({
+    queryKey: ['site-updates', id],
+    queryFn: () => apiClient.get(`/site-updates/site/${id}`),
+    enabled: !!id,
+  });
+
+  if (isSiteLoading || isEmployeesLoading || isSiteAttendanceLoading || isSiteUpdatesLoading) return <LoadingScreen />;
+
+  const rawSite = siteData?.data;
+  const employees = (employeesData as any)?.data || [];
+  const siteAttendance = (siteAttendanceData as any)?.data || [];
+  const siteUpdates = (siteUpdatesResponse as any)?.data || [];
+
+  if (!rawSite) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h5" sx={{ mb: 2 }}>Site not found</Typography>
+        <Button onClick={() => navigate('/sites')} startIcon={<BackIcon />} variant="contained">
+          Back to Sites
+        </Button>
+      </Box>
+    );
+  }
+
+  // Filter employees for this site
+  const siteEmployees = employees.filter((emp: any) => emp.siteId === rawSite.id);
+  const activeEmployees = siteEmployees.filter((emp: any) => emp.status === 'ACTIVE');
+  const supervisor = siteEmployees.find((emp: any) => emp.role === 'SUPERVISOR');
+
+  const supervisors = employees.filter((emp: any) => emp.role === 'SUPERVISOR');
+
+  const site = {
+    ...rawSite,
+    employeeCount: activeEmployees.length,
+    supervisorName: supervisor ? supervisor.fullName : 'Unassigned',
+    supervisorId: supervisor ? supervisor.id : '',
+  };
+
+  const todayAttendanceRate = activeEmployees.length > 0
+    ? `${Math.round((siteAttendance.length / activeEmployees.length) * 100)}%`
+    : '0%';
+
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  const handleEditClick = () => {
+    reset({
+      name: site.name,
+      address: site.address || '',
+      latitude: site.latitude || undefined,
+      longitude: site.longitude || undefined,
+      radius: site.radius || 150,
+      supervisorId: site.supervisorId || '',
+      status: site.status,
+      isPayrollVisible: site.isPayrollVisible || false,
+    });
+    setApiError(null);
+    setIsEditOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setIsEditOpen(false);
+    setApiError(null);
+  };
+
   const parseDisplayName = (displayName: string) => {
     if (!displayName) return { main: '', secondary: '' };
     const parts = displayName.split(',');
@@ -343,7 +364,7 @@ export default function SiteDetailsPage() {
   const geocodeCustomAddress = async (addr: string) => {
     if (!addr || addr.trim().length < 3) return;
     if (addr === lastGeocodedAddressRef.current) return;
-    
+
     setIsAddressLoading(true);
     try {
       const response = await fetch(
@@ -552,8 +573,8 @@ export default function SiteDetailsPage() {
             <Typography variant="h4" fontWeight={800}>
               {site.name}
             </Typography>
-            <Chip 
-              label={site.status} 
+            <Chip
+              label={site.status}
               color={site.status === 'ACTIVE' ? 'success' : 'default'}
               size="small"
               sx={{ fontWeight: 700, borderRadius: 1.5 }}
@@ -586,18 +607,18 @@ export default function SiteDetailsPage() {
       </Box>
 
       {/* Main Content */}
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          borderRadius: 4, 
+      <Paper
+        elevation={0}
+        sx={{
+          borderRadius: 4,
           border: `1px solid ${theme.palette.divider}`,
           overflow: 'hidden',
           backgroundColor: theme.palette.background.paper,
         }}
       >
         <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3, pt: 1 }}>
-          <Tabs 
-            value={tabValue} 
+          <Tabs
+            value={tabValue}
             onChange={handleTabChange}
             sx={{
               '& .MuiTab-root': {
@@ -660,21 +681,21 @@ export default function SiteDetailsPage() {
                 </Typography>
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                   {[
-                    { 
-                      label: 'Total Employees', 
-                      value: site.employeeCount, 
+                    {
+                      label: 'Total Employees',
+                      value: site.employeeCount,
                       icon: <PeopleIcon color="primary" />,
                       onClick: () => setTabValue(2)
                     },
-                    { 
-                      label: 'Today Attendance', 
-                      value: '85%', 
+                    {
+                      label: 'Today Attendance',
+                      value: todayAttendanceRate,
                       icon: <HistoryIcon color="success" />,
                       onClick: () => navigate('/attendance')
                     },
-                    { 
-                      label: 'Geofence Status', 
-                      value: site.status === 'ACTIVE' ? 'Active' : 'Inactive', 
+                    {
+                      label: 'Geofence Status',
+                      value: site.status === 'ACTIVE' ? 'Active' : 'Inactive',
                       icon: <GeofenceIcon color="info" />,
                       onClick: () => setTabValue(1)
                     },
@@ -777,10 +798,10 @@ export default function SiteDetailsPage() {
                       />
                       <ChangeView center={[Number(site.latitude), Number(site.longitude)]} radius={Number(site.radius) || 150} />
                       <TriggerInvalidateSize />
-                      
-                      <MarkerAny 
-                        position={[Number(site.latitude), Number(site.longitude)]} 
-                        icon={createMarkerIcon(theme.palette.primary.main)} 
+
+                      <MarkerAny
+                        position={[Number(site.latitude), Number(site.longitude)]}
+                        icon={createMarkerIcon(theme.palette.primary.main)}
                       />
                       <CircleAny
                         center={[Number(site.latitude), Number(site.longitude)]}
@@ -796,9 +817,9 @@ export default function SiteDetailsPage() {
                     </MapContainerAny>
                   </Box>
                 ) : (
-                  <Box 
-                    sx={{ 
-                      height: 320, 
+                  <Box
+                    sx={{
+                      height: 320,
                       backgroundColor: alpha(theme.palette.primary.main, 0.02),
                       borderRadius: 4,
                       display: 'flex',
@@ -840,21 +861,96 @@ export default function SiteDetailsPage() {
           </CustomTabPanel>
 
           <CustomTabPanel value={tabValue} index={3}>
-            <Box sx={{ p: 3, textAlign: 'center', border: `1px dashed ${theme.palette.divider}`, borderRadius: 3 }}>
-              <HistoryIcon sx={{ fontSize: 40, color: 'text.secondary', opacity: 0.5, mb: 1 }} />
-              <Typography variant="body1" color="text.secondary" fontWeight={500}>
-                Activity logs and site updates will be displayed here.
-              </Typography>
-            </Box>
+            {siteUpdates.length > 0 ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                {siteUpdates.map((update: any) => (
+                  <Paper
+                    key={update.id}
+                    variant="outlined"
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 3.5,
+                      borderColor: theme.palette.divider,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: theme.shadows[1],
+                      }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar sx={{ bgcolor: theme.palette.primary.main, width: 36, height: 36, fontSize: '0.9rem', fontWeight: 600 }}>
+                          {update.employeeName?.split(' ').map((n: any) => n[0]).join('').toUpperCase() || 'U'}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={750} sx={{ fontSize: '0.85rem' }}>
+                            {update.employeeName}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Field Officer / Supervisor
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                        {new Date(update.recordedAt || update.createdAt).toLocaleString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.primary" sx={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                      {update.text}
+                    </Typography>
+
+                    {update.mediaUrls && update.mediaUrls.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 2 }}>
+                        {update.mediaUrls.map((url: string, idx: number) => (
+                          <Box
+                            key={idx}
+                            component="img"
+                            src={url}
+                            alt={`Update attachment ${idx + 1}`}
+                            sx={{
+                              width: 120,
+                              height: 120,
+                              objectFit: 'cover',
+                              borderRadius: 2,
+                              border: `1px solid ${theme.palette.divider}`,
+                              cursor: 'pointer',
+                              transition: 'transform 0.2s',
+                              '&:hover': {
+                                transform: 'scale(1.05)',
+                              }
+                            }}
+                            onClick={() => window.open(url, '_blank')}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Box>
+            ) : (
+              <Box sx={{ p: 4, textAlign: 'center', border: `1px dashed ${theme.palette.divider}`, borderRadius: 3 }}>
+                <HistoryIcon sx={{ fontSize: 40, color: 'text.secondary', opacity: 0.5, mb: 1 }} />
+                <Typography variant="body1" color="text.secondary" fontWeight={500}>
+                  No reports or site updates have been submitted yet.
+                </Typography>
+              </Box>
+            )}
           </CustomTabPanel>
         </Box>
       </Paper>
 
       {/* Edit Dialog */}
-      <Dialog 
-        open={isEditOpen} 
-        onClose={handleCloseEdit} 
-        maxWidth="md" 
+      <Dialog
+        open={isEditOpen}
+        onClose={handleCloseEdit}
+        maxWidth="md"
         fullWidth
         slotProps={{
           paper: {
@@ -869,14 +965,14 @@ export default function SiteDetailsPage() {
         <DialogTitle sx={{ fontWeight: 800, pt: 3, pb: 1 }}>
           Edit Site Details
         </DialogTitle>
-        
+
         <DialogContent dividers sx={{ py: 3 }}>
           {apiError && (
             <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
               {apiError}
             </Alert>
           )}
-          
+
           <Box component="form" id="site-edit-details-form" onSubmit={handleSubmit(onEditSubmit)}>
             <Grid container spacing={3}>
               {/* Left Column - General Details */}
@@ -1230,27 +1326,27 @@ export default function SiteDetailsPage() {
                       <ChangeView center={[watchLat, watchLng]} radius={watchRad} />
                       <MapEvents onMapClick={handleMapClick} />
                       <TriggerInvalidateSize />
-                      
-                       {watchLatitude !== undefined && watchLatitude !== null && !isNaN(Number(watchLatitude)) &&
+
+                      {watchLatitude !== undefined && watchLatitude !== null && !isNaN(Number(watchLatitude)) &&
                         watchLongitude !== undefined && watchLongitude !== null && !isNaN(Number(watchLongitude)) && (
-                        <>
-                          <MarkerAny 
-                            position={[Number(watchLatitude), Number(watchLongitude)]} 
-                            icon={createMarkerIcon(theme.palette.primary.main)} 
-                          />
-                          <CircleAny
-                            center={[Number(watchLatitude), Number(watchLongitude)]}
-                            radius={watchRad}
-                            pathOptions={{
-                              color: theme.palette.primary.main,
-                              fillColor: theme.palette.primary.main,
-                              fillOpacity: 0.12,
-                              weight: 2,
-                              className: 'pulsing-geofence-circle'
-                            }}
-                          />
-                        </>
-                      )}
+                          <>
+                            <MarkerAny
+                              position={[Number(watchLatitude), Number(watchLongitude)]}
+                              icon={createMarkerIcon(theme.palette.primary.main)}
+                            />
+                            <CircleAny
+                              center={[Number(watchLatitude), Number(watchLongitude)]}
+                              radius={watchRad}
+                              pathOptions={{
+                                color: theme.palette.primary.main,
+                                fillColor: theme.palette.primary.main,
+                                fillOpacity: 0.12,
+                                weight: 2,
+                                className: 'pulsing-geofence-circle'
+                              }}
+                            />
+                          </>
+                        )}
                     </MapContainerAny>
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: -1 }}>
@@ -1261,7 +1357,7 @@ export default function SiteDetailsPage() {
             </Grid>
           </Box>
         </DialogContent>
-        
+
         <DialogActions sx={{ px: 3, py: 2.5, gap: 1 }}>
           <Button onClick={handleCloseEdit} color="inherit" disabled={isSubmitting} sx={{ borderRadius: 2 }}>
             Cancel
@@ -1303,10 +1399,10 @@ export default function SiteDetailsPage() {
           <Button onClick={() => setIsDeleteOpen(false)} color="inherit" disabled={isDeleting} sx={{ borderRadius: 2 }}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
-            variant="contained" 
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
             disabled={isDeleting}
             sx={{ borderRadius: 2 }}
           >

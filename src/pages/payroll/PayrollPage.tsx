@@ -140,6 +140,9 @@ interface SalaryStructure {
   mlwfEnabled: boolean;
   mlwfCustomAmount?: number;
   mlwfDeduction?: number;
+  medicalAllowance?: number;
+  booksAllowance?: number;
+  ltaAllowance?: number;
 }
 
 export default function PayrollPage() {
@@ -166,6 +169,7 @@ export default function PayrollPage() {
   const [savingStructure, setSavingStructure] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [structureSearch, setStructureSearch] = useState('');
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Salary form states
   const [salaryForm, setSalaryForm] = useState({
@@ -175,6 +179,9 @@ export default function PayrollPage() {
     washingAllowance: '0',
     conveyance: '0',
     special: '0',
+    medicalAllowance: '0',
+    booksAllowance: '0',
+    ltaAllowance: '0',
     pfType: 'STANDARD',
     pfCustomBasis: '',
     esicType: 'STANDARD',
@@ -183,6 +190,22 @@ export default function PayrollPage() {
     ptCustomAmount: '',
     mlwfEnabled: false,
     mlwfCustomAmount: '',
+  });
+
+  // Employee details form states
+  const [empForm, setEmpForm] = useState({
+    designation: '',
+    department: '',
+    linNumber: '',
+    uanNumber: '',
+    pfNumber: '',
+    esicNumber: '',
+    bankName: '',
+    bankAccountNumber: '',
+    bankIfscCode: '',
+    employeeExternalId: '',
+    aadhaar: '',
+    pan: '',
   });
 
   // Initiate run form state
@@ -322,6 +345,23 @@ export default function PayrollPage() {
   const handleConfigureSalary = async (emp: Employee, structure: SalaryStructure | null) => {
     setSelectedEmp(emp);
     setSaveError(null);
+    setIsEditMode(false); // Default to read-only voucher view
+
+    setEmpForm({
+      designation: emp.designation || '',
+      department: emp.department || '',
+      linNumber: emp.linNumber || '',
+      uanNumber: emp.uanNumber || '',
+      pfNumber: emp.pfNumber || '',
+      esicNumber: emp.esicNumber || '',
+      bankName: emp.bankName || '',
+      bankAccountNumber: emp.bankAccountNumber || '',
+      bankIfscCode: emp.bankIfscCode || '',
+      employeeExternalId: emp.employeeExternalId || emp.employeeId || '',
+      aadhaar: emp.aadhaar || '',
+      pan: emp.pan || '',
+    });
+
     if (structure) {
       setExistingStructure(structure);
       setSalaryForm({
@@ -331,6 +371,9 @@ export default function PayrollPage() {
         washingAllowance: String(structure.washingAllowance || 0),
         conveyance: String(structure.conveyance || 0),
         special: String(structure.special || 0),
+        medicalAllowance: String(structure.medicalAllowance || 0),
+        booksAllowance: String(structure.booksAllowance || 0),
+        ltaAllowance: String(structure.ltaAllowance || 0),
         pfType: structure.pfType || 'STANDARD',
         pfCustomBasis: String(structure.pfCustomBasis || ''),
         esicType: structure.esicType || 'STANDARD',
@@ -349,6 +392,9 @@ export default function PayrollPage() {
         washingAllowance: '0',
         conveyance: '0',
         special: '0',
+        medicalAllowance: '0',
+        booksAllowance: '0',
+        ltaAllowance: '0',
         pfType: 'STANDARD',
         pfCustomBasis: '',
         esicType: 'STANDARD',
@@ -368,7 +414,22 @@ export default function PayrollPage() {
     setSavingStructure(true);
     setSaveError(null);
     try {
-      const payload = {
+      const empPayload = {
+        designation: empForm.designation,
+        department: empForm.department,
+        linNumber: empForm.linNumber,
+        uanNumber: empForm.uanNumber,
+        pfNumber: empForm.pfNumber,
+        esicNumber: empForm.esicNumber,
+        bankName: empForm.bankName,
+        bankAccountNumber: empForm.bankAccountNumber,
+        bankIfscCode: empForm.bankIfscCode,
+        employeeExternalId: empForm.employeeExternalId,
+        aadhaar: empForm.aadhaar,
+        pan: empForm.pan,
+      };
+
+      const salaryPayload = {
         employeeId: selectedEmp.id,
         basic: Number(salaryForm.basic),
         da: Number(salaryForm.da || 0),
@@ -376,6 +437,9 @@ export default function PayrollPage() {
         washingAllowance: Number(salaryForm.washingAllowance || 0),
         conveyance: Number(salaryForm.conveyance || 0),
         special: Number(salaryForm.special || 0),
+        medicalAllowance: Number(salaryForm.medicalAllowance || 0),
+        booksAllowance: Number(salaryForm.booksAllowance || 0),
+        ltaAllowance: Number(salaryForm.ltaAllowance || 0),
         pfType: salaryForm.pfType,
         pfCustomBasis: salaryForm.pfType === 'CUSTOM' ? Number(salaryForm.pfCustomBasis || 0) : 0,
         esicType: salaryForm.esicType,
@@ -386,19 +450,19 @@ export default function PayrollPage() {
         mlwfCustomAmount: salaryForm.mlwfEnabled ? Number(salaryForm.mlwfCustomAmount || 0) : 0,
       };
 
-      if (existingStructure) {
-        // Update Structure
-        await apiClient.put(`/payroll/salary-structure/${selectedEmp.id}`, payload);
-      } else {
-        // Create Structure
-        await apiClient.post('/payroll/salary-structure', payload);
-      }
-      
+      await Promise.all([
+        apiClient.put(`/employees/${selectedEmp.id}`, empPayload),
+        existingStructure
+          ? apiClient.put(`/payroll/salary-structure/${selectedEmp.id}`, salaryPayload)
+          : apiClient.post('/payroll/salary-structure', salaryPayload),
+      ]);
+
       setConfigOpen(false);
-      // Invalidate target queries
+      // Invalidate target queries to refresh list
       queryClient.invalidateQueries({ queryKey: ['salary-structure', selectedEmp.id] });
+      queryClient.invalidateQueries({ queryKey: ['employees-payroll'] });
     } catch (err: any) {
-      setSaveError(err?.response?.data?.message || err?.message || 'Failed to save salary structure.');
+      setSaveError(err?.response?.data?.error?.message || err?.response?.data?.message || err?.message || 'Failed to save configuration.');
     } finally {
       setSavingStructure(false);
     }
@@ -411,8 +475,11 @@ export default function PayrollPage() {
     const washing = parseFloat(salaryForm.washingAllowance) || 0;
     const conveyance = parseFloat(salaryForm.conveyance) || 0;
     const special = parseFloat(salaryForm.special) || 0;
+    const medical = parseFloat(salaryForm.medicalAllowance) || 0;
+    const books = parseFloat(salaryForm.booksAllowance) || 0;
+    const lta = parseFloat(salaryForm.ltaAllowance) || 0;
 
-    const gross = basic + da + hra + washing + conveyance + special;
+    const gross = basic + da + hra + washing + conveyance + special + medical + books + lta;
 
     // PF
     const basicPlusDa = basic + da;
@@ -1254,216 +1321,479 @@ export default function PayrollPage() {
       </Dialog>
 
       {/* Salary Config Dialog */}
-      <Dialog open={configOpen} onClose={() => !savingStructure && setConfigOpen(false)} maxWidth="md" fullWidth slotProps={{ paper: { sx: { borderRadius: 4 } } }}>
-        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}><PayrollIcon color="primary" /> Configure Salary Structure</Box>
+      <Dialog 
+        open={configOpen} 
+        onClose={() => !savingStructure && setConfigOpen(false)} 
+        maxWidth="lg" 
+        fullWidth 
+        slotProps={{ 
+          paper: { 
+            sx: { 
+              borderRadius: 3, 
+              backgroundColor: '#f8f9fa',
+              backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(220, 53, 69, 0.03), transparent 250px)',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.12)'
+            } 
+          } 
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid', borderColor: 'divider', backgroundColor: '#fff' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <PayrollIcon color="primary" sx={{ fontSize: 28 }} />
+            <Box>
+              <Typography variant="h6" fontWeight={850} sx={{ letterSpacing: '-0.5px' }}>
+                Employee Pay Slip Configuration
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {selectedEmp?.fullName} • {selectedEmp?.role}
+              </Typography>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant={isEditMode ? 'outlined' : 'contained'}
+              color="primary"
+              onClick={() => setIsEditMode(!isEditMode)}
+              startIcon={<EditIcon />}
+              sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+            >
+              {isEditMode ? 'Preview Mode' : 'Edit Mode'}
+            </Button>
+            <IconButton onClick={() => setConfigOpen(false)} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+              <RejectIcon fontSize="small" />
+            </IconButton>
+          </Box>
         </DialogTitle>
+
         <Box component="form" onSubmit={handleSaveSalary}>
-          <DialogContent dividers>
-            {saveError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>{saveError}</Alert>}
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Set up the monthly earnings components and statutory deductions compliance rules for <strong>{selectedEmp?.fullName}</strong>.
-            </Typography>
-            <Grid container spacing={4}>
-              {/* Earnings Section */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="subtitle2" color="primary" fontWeight={850} sx={{ mb: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Earnings (Monthly)
+          <DialogContent sx={{ p: 4 }}>
+            {saveError && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{saveError}</Alert>}
+
+            {/* RATNAMOHAN PAPER SLIP LAYOUT CONTAINER */}
+            <Paper 
+              elevation={2} 
+              sx={{ 
+                p: 4, 
+                borderRadius: 2, 
+                backgroundColor: '#ffffff', 
+                border: '1px solid #e0e0e0',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.04)',
+                fontFamily: 'Roboto, Inter, sans-serif'
+              }}
+            >
+              {/* Header Branding */}
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <Typography variant="caption" sx={{ color: '#dc3545', fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase' }}>
+                  Name of Company - Ratnamohan
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth required label="Basic Salary (INR)" size="small" type="number"
-                      value={salaryForm.basic}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, basic: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth required label="Dearness Allowance / DA (INR)" size="small" type="number"
-                      value={salaryForm.da}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, da: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth required label="HRA (INR)" size="small" type="number"
-                      value={salaryForm.hra}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, hra: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth required label="Washing Allowance (INR)" size="small" type="number"
-                      value={salaryForm.washingAllowance}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, washingAllowance: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth label="Conveyance Allowance (INR)" size="small" type="number"
-                      value={salaryForm.conveyance}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, conveyance: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <TextField
-                      fullWidth label="Special / Other Allowance (INR)" size="small" type="number"
-                      value={salaryForm.special}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, special: e.target.value }))}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    />
-                  </Grid>
+                <Typography variant="h3" sx={{ color: '#dc3545', fontWeight: 900, mt: 0.5, letterSpacing: '2px', lineHeight: 1.1 }}>
+                  RATNAMOHAN
+                </Typography>
+              </Box>
+
+              {/* Pay Slip Period */}
+              <Box sx={{ borderBottom: '2px solid #333', pb: 1, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#333' }}>
+                  Pay Slip for : <span style={{ color: '#dc3545' }}>Month of - {MONTH_NAMES[form.month]} {form.year}</span>
+                </Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={700}>
+                  OFFICIAL COPY
+                </Typography>
+              </Box>
+
+              {/* Two Column Employee Info Grid */}
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Left Columns Employee Info */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TableContainer component={Box} sx={{ '& td': { py: 0.75, borderBottom: 'none', fontSize: '0.82rem' } }}>
+                    <Table size="small">
+                      <TableBody>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, width: '40%', color: 'text.secondary' }}>EMP ID</TableCell>
+                          <TableCell sx={{ width: '60%' }}>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.employeeExternalId} onChange={(e) => setEmpForm(f => ({ ...f, employeeExternalId: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.employeeExternalId || selectedEmp?.employeeId || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Designation</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.designation} onChange={(e) => setEmpForm(f => ({ ...f, designation: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.designation || 'TSI'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Dept</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.department} onChange={(e) => setEmpForm(f => ({ ...f, department: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.department || '0'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Job Location</TableCell>
+                          <TableCell>
+                            <strong>: {selectedSiteId ? sitesMap[selectedSiteId]?.name : 'Gujarat'}</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Type of Salary</TableCell>
+                          <TableCell>
+                            <strong>: Monthly</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>P Days</TableCell>
+                          <TableCell>
+                            <strong>: 26 (Standard)</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Weekly Off</TableCell>
+                          <TableCell>
+                            <strong>: 4</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>PH</TableCell>
+                          <TableCell>
+                            <strong>: 0</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Total OT Hrs Paid</TableCell>
+                          <TableCell>
+                            <strong>: 0.00</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Total Salary Paid Days</TableCell>
+                          <TableCell>
+                            <strong>: 30</strong>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+
+                {/* Right Columns Employee Info */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <TableContainer component={Box} sx={{ '& td': { py: 0.75, borderBottom: 'none', fontSize: '0.82rem' } }}>
+                    <Table size="small">
+                      <TableBody>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, width: '40%', color: 'text.secondary' }}>Name of Employee</TableCell>
+                          <TableCell sx={{ width: '60%' }}>
+                            <strong>: {selectedEmp?.fullName}</strong>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>LIN Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.linNumber} onChange={(e) => setEmpForm(f => ({ ...f, linNumber: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.linNumber || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>ESIC Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.esicNumber} onChange={(e) => setEmpForm(f => ({ ...f, esicNumber: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.esicNumber || 'Not Applicable'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>UAN Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.uanNumber} onChange={(e) => setEmpForm(f => ({ ...f, uanNumber: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.uanNumber || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>PF Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.pfNumber} onChange={(e) => setEmpForm(f => ({ ...f, pfNumber: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.pfNumber || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Adhar Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.aadhaar} onChange={(e) => setEmpForm(f => ({ ...f, aadhaar: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.aadhaar || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Pan Number</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.pan} onChange={(e) => setEmpForm(f => ({ ...f, pan: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.pan || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Bank Account No</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.bankAccountNumber} onChange={(e) => setEmpForm(f => ({ ...f, bankAccountNumber: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.bankAccountNumber || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>Name of Bank</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.bankName} onChange={(e) => setEmpForm(f => ({ ...f, bankName: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.bankName || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 700, color: 'text.secondary' }}>IFSC Code</TableCell>
+                          <TableCell>
+                            {isEditMode ? (
+                              <TextField size="small" variant="standard" fullWidth value={empForm.bankIfscCode} onChange={(e) => setEmpForm(f => ({ ...f, bankIfscCode: e.target.value }))} />
+                            ) : (
+                              <strong>: {empForm.bankIfscCode || '—'}</strong>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
                 </Grid>
               </Grid>
 
-              {/* Compliance & Deductions Section */}
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Typography variant="subtitle2" color="primary" fontWeight={850} sx={{ mb: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Compliance & Deductions
-                </Typography>
-                
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-                  {/* PF Section */}
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={800} gutterBottom>Provident Fund (P.F)</Typography>
-                    <RadioGroup
-                      row
-                      value={salaryForm.pfType}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, pfType: e.target.value }))}
-                      sx={{ mb: 1.5 }}
-                    >
-                      <FormControlLabel value="STANDARD" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>As per Basic + DA</Typography>} />
-                      <FormControlLabel value="CUSTOM" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Custom Basic DA</Typography>} />
-                    </RadioGroup>
-                    {salaryForm.pfType === 'CUSTOM' && (
-                      <TextField
-                        fullWidth size="small" label="Custom Basis (INR)" type="number"
-                        required
-                        value={salaryForm.pfCustomBasis}
-                        onChange={(e) => setSalaryForm((f) => ({ ...f, pfCustomBasis: e.target.value }))}
-                        slotProps={{ input: { sx: { borderRadius: 1.5 } } }}
-                        sx={{ mb: 1.5 }}
-                      />
-                    )}
-                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" color="text.secondary">Est. Employee P.F: <strong>{INR(liveCalculations.pfEmployee)}</strong></Typography>
-                      <Typography variant="caption" color="text.secondary">Est. Employer P.F: <strong>{INR(liveCalculations.pfEmployer)}</strong></Typography>
+              {/* Earnings & Deductions Tables (Side by Side) */}
+              <Grid container spacing={0} sx={{ border: '1px solid #ccc', borderBottom: 'none' }}>
+                {/* Left Panel: Earnings */}
+                <Grid size={{ xs: 12, md: 6 }} sx={{ borderRight: { md: '1px solid #ccc' } }}>
+                  <Box sx={{ p: 1, backgroundColor: '#f5f5f5', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" fontWeight={800}>Earnings</Typography>
+                    <Typography variant="subtitle2" fontWeight={800}>Amount</Typography>
+                  </Box>
+                  <Box sx={{ p: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">BASIC / DA</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.basic} onChange={(e) => setSalaryForm(f => ({ ...f, basic: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', fontWeight: 700 }}>{INR(salaryForm.basic)}</Typography>
+                      )}
                     </Box>
-                  </Paper>
-
-                  {/* ESIC Section */}
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={800} gutterBottom>ESIC</Typography>
-                    <RadioGroup
-                      row
-                      value={salaryForm.esicType}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, esicType: e.target.value }))}
-                      sx={{ mb: 1.5 }}
-                    >
-                      <FormControlLabel value="STANDARD" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>As per Gross</Typography>} />
-                      <FormControlLabel value="CUSTOM" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Gross for ESIC</Typography>} />
-                    </RadioGroup>
-                    {salaryForm.esicType === 'CUSTOM' && (
-                      <TextField
-                        fullWidth size="small" label="Custom Basis (INR)" type="number"
-                        required
-                        value={salaryForm.esicCustomBasis}
-                        onChange={(e) => setSalaryForm((f) => ({ ...f, esicCustomBasis: e.target.value }))}
-                        slotProps={{ input: { sx: { borderRadius: 1.5 } } }}
-                        sx={{ mb: 1.5 }}
-                      />
-                    )}
-                    <Box sx={{ mt: 1, display: 'flex', justifyContent: 'space-between' }}>
-                      <Typography variant="caption" color="text.secondary">Est. Employee ESIC: <strong>{INR(liveCalculations.esicEmployee)}</strong></Typography>
-                      <Typography variant="caption" color="text.secondary">Est. Employer ESIC: <strong>{INR(liveCalculations.esicEmployer)}</strong></Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Dearness Allowance (DA)</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.da} onChange={(e) => setSalaryForm(f => ({ ...f, da: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.da)}</Typography>
+                      )}
                     </Box>
-                  </Paper>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">House Rent Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.hra} onChange={(e) => setSalaryForm(f => ({ ...f, hra: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.hra)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Washing Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.washingAllowance} onChange={(e) => setSalaryForm(f => ({ ...f, washingAllowance: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.washingAllowance)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Medical Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.medicalAllowance} onChange={(e) => setSalaryForm(f => ({ ...f, medicalAllowance: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.medicalAllowance)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Books & Education All</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.booksAllowance} onChange={(e) => setSalaryForm(f => ({ ...f, booksAllowance: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.booksAllowance)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Conveyance Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.conveyance} onChange={(e) => setSalaryForm(f => ({ ...f, conveyance: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.conveyance)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">Special Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.special} onChange={(e) => setSalaryForm(f => ({ ...f, special: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.special)}</Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2">LTA Allowance</Typography>
+                      {isEditMode ? (
+                        <TextField size="small" type="number" sx={{ width: 120 }} value={salaryForm.ltaAllowance} onChange={(e) => setSalaryForm(f => ({ ...f, ltaAllowance: e.target.value }))} />
+                      ) : (
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>{INR(salaryForm.ltaAllowance)}</Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
 
-                  {/* PT Section */}
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={800} gutterBottom>Professional Tax (P.T)</Typography>
-                    <RadioGroup
-                      row
-                      value={salaryForm.ptEnabled ? 'YES' : 'NO'}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, ptEnabled: e.target.value === 'YES' }))}
-                      sx={{ mb: 1.5 }}
-                    >
-                      <FormControlLabel value="YES" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Yes</Typography>} />
-                      <FormControlLabel value="NO" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>No</Typography>} />
-                    </RadioGroup>
-                    {salaryForm.ptEnabled && (
-                      <TextField
-                        fullWidth size="small" label="Custom Amount (INR)" type="number"
-                        placeholder="Standard bracket"
-                        value={salaryForm.ptCustomAmount}
-                        onChange={(e) => setSalaryForm((f) => ({ ...f, ptCustomAmount: e.target.value }))}
-                        slotProps={{ input: { sx: { borderRadius: 1.5 } } }}
-                      />
-                    )}
-                  </Paper>
+                {/* Right Panel: Deductions */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Box sx={{ p: 1, backgroundColor: '#f5f5f5', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="subtitle2" fontWeight={800}>Deductions</Typography>
+                    <Typography variant="subtitle2" fontWeight={800}>Amount</Typography>
+                  </Box>
+                  <Box sx={{ p: 1, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2">PF (Provident Fund)</Typography>
+                        {isEditMode && (
+                          <RadioGroup row value={salaryForm.pfType} onChange={(e) => setSalaryForm(f => ({ ...f, pfType: e.target.value }))}>
+                            <FormControlLabel value="STANDARD" control={<Radio size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Std</span>} />
+                            <FormControlLabel value="CUSTOM" control={<Radio size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Cust</span>} />
+                          </RadioGroup>
+                        )}
+                        {isEditMode && salaryForm.pfType === 'CUSTOM' && (
+                          <TextField size="small" label="Custom Basis" type="number" sx={{ width: 100, mt: 0.5 }} value={salaryForm.pfCustomBasis} onChange={(e) => setSalaryForm(f => ({ ...f, pfCustomBasis: e.target.value }))} />
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'error.main' }}>
+                        {INR(liveCalculations.pfEmployee)}
+                      </Typography>
+                    </Box>
 
-                  {/* MLWF Section */}
-                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
-                    <Typography variant="subtitle2" fontWeight={800} gutterBottom>M.L.W.F</Typography>
-                    <RadioGroup
-                      row
-                      value={salaryForm.mlwfEnabled ? 'YES' : 'NO'}
-                      onChange={(e) => setSalaryForm((f) => ({ ...f, mlwfEnabled: e.target.value === 'YES' }))}
-                      sx={{ mb: 1.5 }}
-                    >
-                      <FormControlLabel value="YES" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>Yes</Typography>} />
-                      <FormControlLabel value="NO" control={<Radio size="small" />} label={<Typography variant="body2" fontWeight={600}>No</Typography>} />
-                    </RadioGroup>
-                    {salaryForm.mlwfEnabled && (
-                      <TextField
-                        fullWidth size="small" label="Deduction Amount (INR)" type="number"
-                        required
-                        value={salaryForm.mlwfCustomAmount}
-                        onChange={(e) => setSalaryForm((f) => ({ ...f, mlwfCustomAmount: e.target.value }))}
-                        slotProps={{ input: { sx: { borderRadius: 1.5 } } }}
-                      />
-                    )}
-                  </Paper>
-                </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2">ESIC</Typography>
+                        {isEditMode && (
+                          <RadioGroup row value={salaryForm.esicType} onChange={(e) => setSalaryForm(f => ({ ...f, esicType: e.target.value }))}>
+                            <FormControlLabel value="STANDARD" control={<Radio size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Std</span>} />
+                            <FormControlLabel value="CUSTOM" control={<Radio size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Cust</span>} />
+                          </RadioGroup>
+                        )}
+                        {isEditMode && salaryForm.esicType === 'CUSTOM' && (
+                          <TextField size="small" label="Custom Basis" type="number" sx={{ width: 100, mt: 0.5 }} value={salaryForm.esicCustomBasis} onChange={(e) => setSalaryForm(f => ({ ...f, esicCustomBasis: e.target.value }))} />
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'error.main' }}>
+                        {INR(liveCalculations.esicEmployee)}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2">Professional Tax (P.T)</Typography>
+                        {isEditMode && (
+                          <FormControlLabel control={<Radio checked={salaryForm.ptEnabled} onClick={() => setSalaryForm(f => ({ ...f, ptEnabled: !f.ptEnabled }))} size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Enabled</span>} />
+                        )}
+                        {isEditMode && salaryForm.ptEnabled && (
+                          <TextField size="small" label="Custom PT" type="number" sx={{ width: 100, mt: 0.5 }} value={salaryForm.ptCustomAmount} onChange={(e) => setSalaryForm(f => ({ ...f, ptCustomAmount: e.target.value }))} />
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'error.main' }}>
+                        {INR(liveCalculations.ptAmount)}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Typography variant="body2">M.L.W.F</Typography>
+                        {isEditMode && (
+                          <FormControlLabel control={<Radio checked={salaryForm.mlwfEnabled} onClick={() => setSalaryForm(f => ({ ...f, mlwfEnabled: !f.mlwfEnabled }))} size="small" />} label={<span style={{ fontSize: '0.72rem' }}>Enabled</span>} />
+                        )}
+                        {isEditMode && salaryForm.mlwfEnabled && (
+                          <TextField size="small" label="Custom MLWF" type="number" sx={{ width: 100, mt: 0.5 }} value={salaryForm.mlwfCustomAmount} onChange={(e) => setSalaryForm(f => ({ ...f, mlwfCustomAmount: e.target.value }))} />
+                        )}
+                      </Box>
+                      <Typography variant="body2" sx={{ fontFamily: 'monospace', color: 'error.main' }}>
+                        {INR(liveCalculations.mlwfAmount)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
               </Grid>
-            </Grid>
 
-            {/* LIVE CALCULATION SUMMARY */}
-            <Divider sx={{ my: 3.5 }} />
-            <Grid container spacing={2.5}>
-              <Grid size={{ xs: 6, sm: 4 }}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderLeft: '4px solid', borderLeftColor: 'success.main', background: alpha(theme.palette.success.main, 0.02) }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>Gross Earnings</Typography>
-                  <Typography variant="h5" fontWeight={850} color="success.main" sx={{ mt: 0.5 }}>{INR(liveCalculations.gross)}</Typography>
-                </Paper>
-              </Grid>
-              <Grid size={{ xs: 6, sm: 4 }}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderLeft: '4px solid', borderLeftColor: 'error.main', background: alpha(theme.palette.error.main, 0.02) }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>Total Deductions</Typography>
-                  <Typography variant="h5" fontWeight={850} color="error.main" sx={{ mt: 0.5 }}>
+              {/* Totals Section */}
+              <Grid container spacing={0} sx={{ border: '1px solid #ccc', backgroundColor: '#fcfcfc', py: 1.5, px: 2 }}>
+                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid #ddd' }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>GROSS EARNING</Typography>
+                  <Typography variant="subtitle1" fontWeight={850} color="success.main">{INR(liveCalculations.gross)}</Typography>
+                </Grid>
+                <Grid size={{ xs: 4 }} sx={{ borderRight: '1px solid #ddd', pl: 2 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>TOTAL DEDUCTION</Typography>
+                  <Typography variant="subtitle1" fontWeight={850} color="error.main">
                     {INR(liveCalculations.pfEmployee + liveCalculations.esicEmployee + liveCalculations.ptAmount + liveCalculations.mlwfAmount)}
                   </Typography>
-                </Paper>
+                </Grid>
+                <Grid size={{ xs: 4 }} sx={{ pl: 2 }}>
+                  <Typography variant="caption" color="text.secondary" fontWeight={700}>NET SALARY</Typography>
+                  <Typography variant="subtitle1" fontWeight={900} color="primary.main">{INR(liveCalculations.netPay)}</Typography>
+                </Grid>
               </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, borderLeft: '4px solid', borderLeftColor: 'primary.main', background: alpha(theme.palette.primary.main, 0.02) }}>
-                  <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>Estimated Net Pay</Typography>
-                  <Typography variant="h5" fontWeight={850} color="primary.main" sx={{ mt: 0.5 }}>{INR(liveCalculations.netPay)}</Typography>
-                </Paper>
-              </Grid>
-            </Grid>
+
+              {/* Support & Signature Disclaimer */}
+              <Box sx={{ mt: 3, textAlign: 'center' }}>
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ fontStyle: 'italic', mb: 1.5 }}>
+                  This is computer generated statement and does not require any signature or stamp
+                </Typography>
+                <Typography variant="body2" fontWeight={700} color="text.secondary">
+                  For support — <span style={{ color: '#dc3545' }}>salaryslips@ratnamohan.com</span>
+                </Typography>
+                <Typography variant="body2" fontWeight={800} color="text.secondary" sx={{ mt: 0.5 }}>
+                  +91 9767553366
+                </Typography>
+              </Box>
+            </Paper>
           </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2.5 }}>
-            <Button onClick={() => setConfigOpen(false)} color="inherit" disabled={savingStructure}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={savingStructure} sx={{ borderRadius: 2.5, fontWeight: 700, px: 4 }}>
-              {savingStructure ? <CircularProgress size={20} color="inherit" /> : 'Save Structure'}
+
+          <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', backgroundColor: '#fff' }}>
+            <Button onClick={() => setConfigOpen(false)} color="inherit" disabled={savingStructure}>
+              Cancel
             </Button>
+            {isEditMode && (
+              <Button type="submit" variant="contained" disabled={savingStructure} sx={{ borderRadius: 2, fontWeight: 700, px: 4 }}>
+                {savingStructure ? <CircularProgress size={20} color="inherit" /> : 'Save Structure'}
+              </Button>
+            )}
           </DialogActions>
         </Box>
       </Dialog>
