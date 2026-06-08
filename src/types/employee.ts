@@ -12,4 +12,34 @@ export interface Employee {
   siteName?: string;
   siteId?: string;
   joiningDate: string;
+  enrollmentDate?: string;
+  gender?: string;
+  dob?: string;
+  dateOfBirth?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  pfNumber?: string;
+  uanNumber?: string;
+  esicNumber?: string;
+  hasFaceRegistered?: boolean;
+  documents?: any[];
+  employeeExternalId?: string;
+  designation?: string;
+  department?: string;
+  linNumber?: string;
+  maritalStatus?: string;
+  bloodGroup?: string;
+  heightFeet?: number;
+  heightInches?: number;
+  weightKg?: number;
+  education?: string;
+  languagesKnown?: string;
+  emergencyContactNumber?: string;
+  policeVerificationStatus?: boolean;
+  form11Number?: string;
+  residentialProofStatus?: boolean;
+  residentialAddress?: string;
+  termsAndConditionsAccepted?: boolean;
 }
+

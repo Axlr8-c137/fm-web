@@ -188,8 +188,8 @@ export default function AttendanceLogsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ['attendance-logs', dateRangeParams],
     queryFn: () => AttendanceService.getLogs({
-      page: 0,
-      size: 500,
+      page: 1,
+      limit: 100,
       start: dateRangeParams.start,
       end: dateRangeParams.end,
     }),

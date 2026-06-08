@@ -184,7 +184,7 @@ export default function CreateAndEnrollDialog({
         role: data.role,
         designation: data.designation || undefined,
         status: 'ACTIVE',
-        joiningDate: data.joiningDate.toISOString(),
+        enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
         organizationId: orgId,
         siteId: selectedSiteId,
       };
