@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { LoadingScreen } from '../common/LoadingScreen';
 
 interface RoleProtectedRouteProps {
-  allowedRoles: ('ADMIN' | 'SUPERVISOR' | 'PAYROLL_ADMIN' | 'SUPER_ADMIN')[];
+  allowedRoles: ('ADMIN' | 'SUPERVISOR' | 'PAYROLL_ADMIN' | 'SUPER_ADMIN' | 'EMPLOYEE')[];
 }
 
 export const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({ allowedRoles }) => {
@@ -18,7 +18,7 @@ export const RoleProtectedRoute: React.FC<RoleProtectedRouteProps> = ({ allowedR
     return <Navigate to="/login" replace />;
   }
 
-  if (user && !allowedRoles.includes(user.role)) {
+  if (user && !(allowedRoles as string[]).includes(user.role)) {
     return <Navigate to="/forbidden" replace />;
   }
 

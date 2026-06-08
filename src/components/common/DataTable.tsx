@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   DataGrid,
   GridToolbarContainer,
@@ -10,6 +10,8 @@ import {
 } from '@mui/x-data-grid';
 import type { GridColDef, GridRowSelectionModel } from '@mui/x-data-grid';
 import { Box, Paper, alpha, useTheme } from '@mui/material';
+
+const GridToolbarQuickFilterAny = GridToolbarQuickFilter as any;
 
 interface DataTableProps<T> {
   rows: T[];
@@ -64,7 +66,7 @@ export function DataTable<T extends Record<string, any>>({
           <GridToolbarDensitySelector />
           <GridToolbarExport />
         </Box>
-        <GridToolbarQuickFilter
+        <GridToolbarQuickFilterAny
           sx={{
             '& .MuiInputBase-root': {
               borderRadius: 2,

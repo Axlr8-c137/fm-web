@@ -1,18 +1,21 @@
-import React from 'react';
-import { Box, Typography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon, Badge as BadgeIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '../../components/common/DataTable';
 import { EmployeeService } from '../../api/employee.service';
 import apiClient from '../../api/client';
 import type { Employee } from '../../types/employee';
+
+const Typography = MuiTypography as any;
+
 
 const ROLE_COLORS: Record<string, 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'default'> = {
   SUPER_ADMIN: 'secondary',
@@ -35,6 +38,7 @@ const editSchema = z.object({
 type EditSchema = z.infer<typeof editSchema>;
 
 const EmployeesPage: React.FC = () => {
+  const theme = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   
@@ -43,6 +47,14 @@ const EmployeesPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
+
+  // View Details & Verification States
+  const [employeeToView, setEmployeeToView] = useState<Employee | null>(null);
+  const [employeeDetails, setEmployeeDetails] = useState<any | null>(null);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [rejectingDocId, setRejectingDocId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const { control, handleSubmit, reset, formState: { errors } } = useForm<EditSchema>({
     resolver: zodResolver(editSchema),
@@ -113,6 +125,42 @@ const EmployeesPage: React.FC = () => {
       setEmployeeToDelete(null);
     }
   };
+
+  // View Profile handlers
+  const handleViewClick = async (emp: Employee) => {
+    setEmployeeToView(emp);
+    setIsDetailsLoading(true);
+    setVerificationError(null);
+    setRejectingDocId(null);
+    setRejectionReason('');
+    try {
+      const response = await EmployeeService.getEmployeeById(emp.id);
+      setEmployeeDetails(response?.data || response);
+    } catch (err) {
+      console.error("Failed to fetch employee details", err);
+    } finally {
+      setIsDetailsLoading(false);
+    }
+  };
+
+  const handleVerifyDocument = async (docId: string, isApproved: boolean, reason?: string) => {
+    setVerificationError(null);
+    try {
+      const url = `/employees/documents/${docId}/verify?isApproved=${isApproved}${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`;
+      await apiClient.put(url);
+      
+      // Refresh current employee details
+      if (employeeToView) {
+        const response = await EmployeeService.getEmployeeById(employeeToView.id);
+        setEmployeeDetails(response?.data || response);
+      }
+      queryClient.invalidateQueries({ queryKey: ['employees'] });
+    } catch (err: any) {
+      console.error("Failed to verify document", err);
+      setVerificationError(err?.message || 'Failed to update verification status.');
+    }
+  };
+
   const { data: employeesData, isLoading: isEmployeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees'],
     queryFn: () => EmployeeService.getEmployees(),
@@ -201,12 +249,12 @@ const EmployeesPage: React.FC = () => {
       width: 120,
       headerAlign: 'center',
       align: 'center',
-      valueGetter: () => 'ACTIVE', // API does not provide isActive in EmployeeResponseDto
+      valueGetter: (value) => value || 'ACTIVE',
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
           <Chip 
             label={params.value} 
-            color="success" 
+            color={params.value === 'ACTIVE' ? 'success' : 'default'} 
             size="small" 
             variant="outlined"
             sx={{ fontWeight: 600 }}
@@ -238,8 +286,10 @@ const EmployeesPage: React.FC = () => {
       sortable: false,
       renderCell: (params) => (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-          <Tooltip title="View">
-            <IconButton size="small"><ViewIcon fontSize="small" /></IconButton>
+          <Tooltip title="View Profile">
+            <IconButton size="small" onClick={() => handleViewClick(params.row as Employee)}>
+              <ViewIcon fontSize="small" />
+            </IconButton>
           </Tooltip>
           <Tooltip title="Edit">
             <IconButton size="small" color="primary" onClick={() => handleEditClick(params.row as Employee)}>
@@ -264,6 +314,16 @@ const EmployeesPage: React.FC = () => {
     );
   }
 
+  const rows = (employeesData as any)?.data || [];
+
+  const stats = React.useMemo(() => {
+    const total = rows.length;
+    const active = rows.filter((emp: any) => emp.status === 'ACTIVE').length;
+    const inactive = rows.filter((emp: any) => emp.status === 'INACTIVE').length;
+    const supervisors = rows.filter((emp: any) => emp.role === 'SUPERVISOR').length;
+    return { total, active, inactive, supervisors };
+  }, [rows]);
+
   return (
     <Box sx={{ p: 3 }}>
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -285,8 +345,57 @@ const EmployeesPage: React.FC = () => {
         </Button>
       </Box>
 
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {[
+          { label: 'Total Employees', value: stats.total, color: theme.palette.primary.main },
+          { label: 'Active', value: stats.active, color: theme.palette.success.main },
+          { label: 'Inactive', value: stats.inactive, color: theme.palette.text.secondary },
+          { label: 'Supervisors', value: stats.supervisors, color: theme.palette.warning.main },
+        ].map((item, i) => (
+          <Grid size={{ xs: 12, sm: 6, md: 3 }} key={i}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                borderRadius: 4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: alpha(item.color, 0.02),
+                borderColor: alpha(item.color, 0.15),
+              }}
+            >
+              <Box>
+                <Typography variant="h4" fontWeight={800} sx={{ color: item.color, mb: 0.5 }}>
+                  {item.value}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                  {item.label}
+                </Typography>
+              </Box>
+              <Box 
+                sx={{ 
+                  p: 1.25, 
+                  borderRadius: 3, 
+                  backgroundColor: alpha(item.color, 0.08), 
+                  color: item.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '1.2rem'
+                }}
+              >
+                <BadgeIcon fontSize="small" />
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
       <DataTable
-        rows={(employeesData as any)?.data || []}
+        rows={rows}
         columns={columns}
         loading={isEmployeesLoading}
         getRowId={(row) => row.id}
@@ -389,6 +498,277 @@ const EmployeesPage: React.FC = () => {
           <Button onClick={handleCloseEdit} color="inherit" disabled={isEditing}>Cancel</Button>
           <Button type="submit" form="edit-employee-form" variant="contained" disabled={isEditing}>
             {isEditing ? <CircularProgress size={24} color="inherit" /> : 'Save Changes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* View Details Dialog */}
+      <Dialog 
+        open={!!employeeToView} 
+        onClose={() => {
+          setEmployeeToView(null);
+          setEmployeeDetails(null);
+          setVerificationError(null);
+          setRejectingDocId(null);
+          setRejectionReason('');
+        }} 
+        maxWidth="md" 
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: { borderRadius: 4, backgroundImage: 'none' }
+          }
+        }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pt: 3, pb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Employee Profile</span>
+          {employeeToView && (
+            <Chip 
+              label={employeeToView.status} 
+              color={employeeToView.status === 'ACTIVE' ? 'success' : 'default'} 
+              size="small" 
+              sx={{ fontWeight: 700, borderRadius: 1.5 }}
+            />
+          )}
+        </DialogTitle>
+        <DialogContent dividers sx={{ py: 3 }}>
+          {isDetailsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+              <CircularProgress />
+            </Box>
+          ) : employeeDetails ? (
+            <Box>
+              {verificationError && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{verificationError}</Alert>
+              )}
+              
+              <Grid container spacing={3}>
+                {/* Basic Personal details */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant="subtitle2" color="text.secondary" fontWeight={700} gutterBottom>
+                    PERSONAL DETAILS
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>FULL NAME</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.fullName}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>PHONE</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.phone || employeeDetails.phoneNumber || '-'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>EMAIL</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.email || '-'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>GENDER / DOB</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {employeeDetails.gender || '-'} / {employeeDetails.dateOfBirth || employeeDetails.dob || '-'}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+
+                {/* Work Details */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Typography variant="subtitle2" color="text.secondary" fontWeight={700} gutterBottom>
+                    WORK PROFILE
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>ROLE / DESIGNATION</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {employeeDetails.role} / {employeeDetails.designation || 'General Staff'}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>DEPARTMENT</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.department || 'N/A'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>JOINING DATE</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.joiningDate ? new Date(employeeDetails.joiningDate).toLocaleDateString() : '-'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>FACE REGISTRATION STATUS</Typography>
+                      <Chip 
+                        label={employeeDetails.hasFaceRegistered ? 'REGISTERED' : 'PENDING'} 
+                        color={employeeDetails.hasFaceRegistered ? 'success' : 'warning'} 
+                        size="small" 
+                        sx={{ fontWeight: 700, mt: 0.5, borderRadius: 1 }}
+                      />
+                    </Box>
+                  </Paper>
+                </Grid>
+
+                {/* Statutory & Bank Details */}
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="subtitle2" color="text.secondary" fontWeight={700} gutterBottom>
+                    BANK & COMPLIANCE DETAILS
+                  </Typography>
+                  <Paper variant="outlined" sx={{ p: 2, borderRadius: 3 }}>
+                    <Grid container spacing={2}>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>BANK NAME</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.bankName || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>ACCOUNT NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.bankAccountNumber || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>IFSC CODE</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.bankIfscCode || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>PF NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.pfNumber || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>UAN NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.uanNumber || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>ESIC NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.esicNumber || '-'}</Typography>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+
+                {/* Identification Documents & Verification */}
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="subtitle2" color="text.secondary" fontWeight={700} gutterBottom>
+                    IDENTIFICATION DOCUMENTS
+                  </Typography>
+                  {employeeDetails.documents && employeeDetails.documents.length > 0 ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {employeeDetails.documents.map((doc: any) => (
+                        <Paper 
+                          key={doc.id} 
+                          variant="outlined" 
+                          sx={{ 
+                            p: 2.5, 
+                            borderRadius: 3, 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            gap: 2,
+                            borderColor: doc.isVerified ? theme.palette.success.main + '40' : doc.rejectionReason ? theme.palette.error.main + '40' : theme.palette.divider 
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box>
+                              <Typography variant="subtitle2" fontWeight={700}>{doc.type}</Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                                Uploaded on: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '-'}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                              <Button 
+                                variant="text" 
+                                size="small" 
+                                href={doc.fileUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                sx={{ mr: 1 }}
+                              >
+                                View File
+                              </Button>
+                              <Chip 
+                                label={doc.isVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
+                                color={doc.isVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
+                                size="small" 
+                                sx={{ fontWeight: 700, borderRadius: 1 }}
+                              />
+                            </Box>
+                          </Box>
+
+                          {/* Verification actions for admin */}
+                          {!doc.isVerified && (
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+                              <Box sx={{ display: 'flex', gap: 2 }}>
+                                <Button 
+                                  variant="contained" 
+                                  color="success" 
+                                  size="small"
+                                  onClick={() => handleVerifyDocument(doc.id, true)}
+                                  sx={{ borderRadius: 2 }}
+                                >
+                                  Approve Document
+                                </Button>
+                                <Button 
+                                  variant="outlined" 
+                                  color="error" 
+                                  size="small"
+                                  onClick={() => setRejectingDocId(rejectingDocId === doc.id ? null : doc.id)}
+                                  sx={{ borderRadius: 2 }}
+                                >
+                                  {rejectingDocId === doc.id ? 'Cancel' : 'Reject Document'}
+                                </Button>
+                              </Box>
+
+                              {rejectingDocId === doc.id && (
+                                <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Rejection Reason"
+                                    placeholder="e.g. Aadhaar details are blurred"
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                  />
+                                  <Button 
+                                    variant="contained" 
+                                    color="error"
+                                    size="small"
+                                    disabled={!rejectionReason.trim()}
+                                    onClick={() => {
+                                      handleVerifyDocument(doc.id, false, rejectionReason);
+                                      setRejectingDocId(null);
+                                      setRejectionReason('');
+                                    }}
+                                    sx={{ borderRadius: 2 }}
+                                  >
+                                    Confirm
+                                  </Button>
+                                </Box>
+                              )}
+                            </Box>
+                          )}
+
+                          {doc.rejectionReason && (
+                            <Box sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2 }}>
+                              <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>REJECTION REASON:</Typography>
+                              <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>{doc.rejectionReason}</Typography>
+                            </Box>
+                          )}
+                        </Paper>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No documents uploaded.</Typography>
+                  )}
+                </Grid>
+              </Grid>
+            </Box>
+          ) : (
+            <Typography>Error loading employee details.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button 
+            onClick={() => {
+              setEmployeeToView(null);
+              setEmployeeDetails(null);
+              setVerificationError(null);
+              setRejectingDocId(null);
+              setRejectionReason('');
+            }} 
+            variant="contained" 
+            sx={{ borderRadius: 2 }}
+          >
+            Close
           </Button>
         </DialogActions>
       </Dialog>

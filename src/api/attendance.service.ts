@@ -45,4 +45,16 @@ export const AttendanceService = {
   exportAttendance: async (entity: 'ATTENDANCE' | 'EMPLOYEES' | 'SITES', filters: any) => {
     return apiClient.post<ApiResponse<{ downloadUrl: string }>>(`/admin/export/${entity}`, filters);
   },
+  
+  createManualLog: async (data: any) => {
+    return apiClient.post<ApiResponse<AttendanceLog>>('/attendance/logs', data);
+  },
+
+  updateManualLog: async (id: string, data: any) => {
+    return apiClient.put<ApiResponse<AttendanceLog>>(`/attendance/logs/${id}`, data);
+  },
+
+  deleteManualLog: async (id: string) => {
+    return apiClient.delete<ApiResponse<void>>(`/attendance/logs/${id}`);
+  },
 };

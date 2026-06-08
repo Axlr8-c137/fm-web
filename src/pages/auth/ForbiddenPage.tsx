@@ -1,8 +1,9 @@
-import React from 'react';
-import { Box, Typography, Button, Paper, alpha, useTheme } from '@mui/material';
+import { Box, Typography as MuiTypography, Button, Paper, alpha, useTheme } from '@mui/material';
 import { GppBad as ForbiddenIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
+
+const Typography = MuiTypography as any;
 
 export default function ForbiddenPage() {
   const theme = useTheme();

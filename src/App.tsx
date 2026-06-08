@@ -8,6 +8,10 @@ import EmployeeOnboardingPage from './pages/employees/EmployeeOnboardingPage';
 import SiteListPage from './pages/sites/SiteListPage';
 import SiteDetailsPage from './pages/sites/SiteDetailsPage';
 import AttendanceLogsPage from './pages/attendance/AttendanceLogsPage';
+import OperationsPage from './pages/ops/OperationsPage';
+import PayrollPage from './pages/payroll/PayrollPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleProtectedRoute } from './components/auth/RoleProtectedRoute';
@@ -45,8 +49,8 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           
-          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN']} />}>
-            <Route path="dashboard" element={<div>Dashboard (Coming Soon)</div>} />
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE']} />}>
+            <Route path="dashboard" element={<DashboardPage />} />
           </Route>
           
           {/* Admin & Super Admin Only Routes */}
@@ -55,18 +59,18 @@ function App() {
             <Route path="employees/onboard" element={<EmployeeOnboardingPage />} />
             <Route path="sites" element={<SiteListPage />} />
             <Route path="sites/:id" element={<SiteDetailsPage />} />
-            <Route path="admin" element={<div>Admin Settings (Coming Soon)</div>} />
+            <Route path="admin" element={<AdminSettingsPage />} />
           </Route>
 
           {/* Supervisor, Admin, Super Admin Routes */}
           <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR']} />}>
              <Route path="attendance" element={<AttendanceLogsPage />} />
-             <Route path="ops" element={<div>Live Operations (Coming Soon)</div>} />
+             <Route path="ops" element={<OperationsPage />} />
           </Route>
 
           {/* Payroll, Admin, Super Admin Routes */}
           <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'PAYROLL_ADMIN']} />}>
-             <Route path="payroll" element={<div>Payroll Management (Coming Soon)</div>} />
+             <Route path="payroll" element={<PayrollPage />} />
           </Route>
         </Route>
       </Route>

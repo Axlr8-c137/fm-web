@@ -109,3 +109,22 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Pulsing Geofence Animation */
+@keyframes pulse-geofence {
+  0% {
+    stroke-opacity: 0.85;
+    fill-opacity: 0.14;
+  }
+  50% {
+    stroke-opacity: 0.35;
+    fill-opacity: 0.04;
+  }
+  100% {
+    stroke-opacity: 0.85;
+    fill-opacity: 0.14;
+  }
+}
+.pulsing-geofence-circle {
+  animation: pulse-geofence 2.5s infinite ease-in-out;
+}

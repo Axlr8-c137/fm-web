@@ -10,5 +10,18 @@ export interface Employee {
   role: EmployeeRole;
   status: EmployeeStatus;
   siteName?: string;
+  siteId?: string;
   joiningDate: string;
+  employeeExternalId?: string;
+  designation?: string;
+  department?: string;
+  linNumber?: string;
+  uanNumber?: string;
+  pfNumber?: string;
+  esicNumber?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  aadhaar?: string;
+  pan?: string;
 }
