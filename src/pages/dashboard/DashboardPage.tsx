@@ -343,6 +343,7 @@ export default function DashboardPage() {
     site.supervisorName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const selectedSite = sites.find((s: any) => s.id === selectedSiteId);
   const rawSiteAttendance: any[] = (siteAttendanceResponse as any)?.data || [];
   const siteAttendance = React.useMemo(() => consolidateAttendance(rawSiteAttendance), [rawSiteAttendance]);
   const sitePayrollPreview: any[] = (sitePayrollPreviewResponse as any)?.data || [];

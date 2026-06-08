@@ -144,7 +144,7 @@ export default function OperationsPage() {
   // Base Queries
   const { data: sitesData, isLoading: sitesLoading } = useQuery({
     queryKey: ['ops-sites'],
-    queryFn: () => SiteService.getSites(1, 200),
+    queryFn: () => SiteService.getSites(1, 100),
   });
 
   const sites = useMemo(() => sitesData?.data || [], [sitesData]);
