@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme } from '@mui/material';
+import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme, Divider, FormControlLabel, Checkbox } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,6 +34,33 @@ const editSchema = z.object({
   phone: z.string().min(10, 'Phone is required'),
   role: z.string(),
   joiningDate: z.date(),
+  gender: z.string().optional().or(z.literal('')),
+  dob: z.date().nullable().optional(),
+  bankName: z.string().optional().or(z.literal('')),
+  bankAccountNumber: z.string().optional().or(z.literal('')),
+  bankIfscCode: z.string().optional().or(z.literal('')),
+  pfNumber: z.string().optional().or(z.literal('')),
+  uanNumber: z.string().optional().or(z.literal('')),
+  esicNumber: z.string().optional().or(z.literal('')),
+  designation: z.string().optional().or(z.literal('')),
+  department: z.string().optional().or(z.literal('')),
+  employeeId: z.string().optional().or(z.literal('')),
+  employeeExternalId: z.string().optional().or(z.literal('')),
+  linNumber: z.string().optional().or(z.literal('')),
+  maritalStatus: z.string().optional().or(z.literal('')),
+  bloodGroup: z.string().optional().or(z.literal('')),
+  heightFeet: z.string().optional().or(z.literal('')),
+  heightInches: z.string().optional().or(z.literal('')),
+  weightKg: z.string().optional().or(z.literal('')),
+  education: z.string().optional().or(z.literal('')),
+  languagesKnown: z.string().optional().or(z.literal('')),
+  emergencyContactNumber: z.string().optional().or(z.literal('')),
+  form11Number: z.string().optional().or(z.literal('')),
+  residentialAddress: z.string().optional().or(z.literal('')),
+  policeVerificationStatus: z.boolean().optional(),
+  residentialProofStatus: z.boolean().optional(),
+  termsAndConditionsAccepted: z.boolean().optional(),
+  siteId: z.string().optional().or(z.literal('')),
 });
 type EditSchema = z.infer<typeof editSchema>;
 
@@ -60,7 +87,7 @@ const EmployeesPage: React.FC = () => {
     resolver: zodResolver(editSchema),
   });
 
-  const handleEditClick = (employee: Employee) => {
+  const handleEditClick = (employee: any) => {
     const parts = employee.fullName.split(' ');
     const firstName = parts[0];
     const lastName = parts.slice(1).join(' ');
@@ -71,7 +98,34 @@ const EmployeesPage: React.FC = () => {
       email: employee.email || '',
       phone: employee.phone || '',
       role: employee.role || 'EMPLOYEE',
-      joiningDate: employee.joiningDate ? new Date(employee.joiningDate) : new Date(),
+      joiningDate: employee.joiningDate || employee.enrollmentDate ? new Date(employee.joiningDate || employee.enrollmentDate) : new Date(),
+      gender: employee.gender || '',
+      dob: employee.dateOfBirth || employee.dob ? new Date(employee.dateOfBirth || employee.dob) : null,
+      bankName: employee.bankName || '',
+      bankAccountNumber: employee.bankAccountNumber || '',
+      bankIfscCode: employee.bankIfscCode || '',
+      pfNumber: employee.pfNumber || '',
+      uanNumber: employee.uanNumber || '',
+      esicNumber: employee.esicNumber || '',
+      designation: employee.designation || '',
+      department: employee.department || '',
+      employeeId: employee.employeeId || '',
+      employeeExternalId: employee.employeeExternalId || '',
+      linNumber: employee.linNumber || '',
+      maritalStatus: employee.maritalStatus || '',
+      bloodGroup: employee.bloodGroup || '',
+      heightFeet: employee.heightFeet !== undefined && employee.heightFeet !== null ? String(employee.heightFeet) : '',
+      heightInches: employee.heightInches !== undefined && employee.heightInches !== null ? String(employee.heightInches) : '',
+      weightKg: employee.weightKg !== undefined && employee.weightKg !== null ? String(employee.weightKg) : '',
+      education: employee.education || '',
+      languagesKnown: employee.languagesKnown || '',
+      emergencyContactNumber: employee.emergencyContactNumber || '',
+      form11Number: employee.form11Number || '',
+      residentialAddress: employee.residentialAddress || '',
+      policeVerificationStatus: employee.policeVerificationStatus || false,
+      residentialProofStatus: employee.residentialProofStatus || false,
+      termsAndConditionsAccepted: employee.termsAndConditionsAccepted || false,
+      siteId: employee.siteId || '',
     });
     setEmployeeToEdit(employee);
     setApiError(null);
@@ -418,7 +472,7 @@ const EmployeesPage: React.FC = () => {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!employeeToEdit} onClose={handleCloseEdit} maxWidth="sm" fullWidth>
+      <Dialog open={!!employeeToEdit} onClose={handleCloseEdit} maxWidth="md" fullWidth>
         <DialogTitle sx={{ fontWeight: 700 }}>Edit Employee</DialogTitle>
         <DialogContent dividers>
           {apiError && (
@@ -444,23 +498,11 @@ const EmployeesPage: React.FC = () => {
                   )}
                 />
               </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField {...field} fullWidth label="Email" variant="outlined" error={!!errors.email} helperText={errors.email?.message} />
-                  )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="phone"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField {...field} fullWidth label="Phone" variant="outlined" error={!!errors.phone} helperText={errors.phone?.message} />
-                  )}
-                />
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} sx={{ mb: 1 }}>
+                  BASIC INFO
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Controller
@@ -487,6 +529,283 @@ const EmployeesPage: React.FC = () => {
                       value={field.value}
                       onChange={(date) => field.onChange(date)}
                       slotProps={{ textField: { fullWidth: true, variant: 'outlined', error: !!errors.joiningDate, helperText: errors.joiningDate?.message } }}
+                    />
+                  )}
+                />
+              </Grid>
+
+              {/* SECTION: PERSONAL DETAILS */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} sx={{ mb: 1 }}>
+                  PERSONAL DETAILS
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth select label="Gender" variant="outlined" error={!!errors.gender} helperText={errors.gender?.message}>
+                      <MenuItem value=""><em>Not Specified</em></MenuItem>
+                      <MenuItem value="Male">Male</MenuItem>
+                      <MenuItem value="Female">Female</MenuItem>
+                      <MenuItem value="Other">Other</MenuItem>
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="dob"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker 
+                      label="Date of Birth"
+                      value={field.value}
+                      onChange={(date) => field.onChange(date)}
+                      slotProps={{ textField: { fullWidth: true, variant: 'outlined', error: !!errors.dob, helperText: errors.dob?.message } }}
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="maritalStatus"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth select label="Marital Status" variant="outlined" error={!!errors.maritalStatus} helperText={errors.maritalStatus?.message}>
+                      <MenuItem value=""><em>Not Specified</em></MenuItem>
+                      <MenuItem value="Single">Single</MenuItem>
+                      <MenuItem value="Married">Married</MenuItem>
+                      <MenuItem value="Divorced">Divorced</MenuItem>
+                      <MenuItem value="Widowed">Widowed</MenuItem>
+                    </TextField>
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Controller
+                  name="bloodGroup"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Blood Group" variant="outlined" error={!!errors.bloodGroup} helperText={errors.bloodGroup?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Controller
+                  name="heightFeet"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth type="number" label="Height (Feet)" variant="outlined" error={!!errors.heightFeet} helperText={errors.heightFeet?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Controller
+                  name="heightInches"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth type="number" label="Height (Inches)" variant="outlined" error={!!errors.heightInches} helperText={errors.heightInches?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <Controller
+                  name="weightKg"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth type="number" label="Weight (Kg)" variant="outlined" error={!!errors.weightKg} helperText={errors.weightKg?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="education"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Education" variant="outlined" error={!!errors.education} helperText={errors.education?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="languagesKnown"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Languages Known" variant="outlined" error={!!errors.languagesKnown} helperText={errors.languagesKnown?.message} />
+                  )}
+                />
+              </Grid>
+
+              {/* SECTION: CONTACT DETAILS */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} sx={{ mb: 1, mt: 1 }}>
+                  CONTACT DETAILS
+                </Typography>
+                <Divider />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="phone"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Phone" variant="outlined" error={!!errors.phone} helperText={errors.phone?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="email"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Email" variant="outlined" error={!!errors.email} helperText={errors.email?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="emergencyContactNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Emergency Contact Number" variant="outlined" error={!!errors.emergencyContactNumber} helperText={errors.emergencyContactNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <Controller
+                  name="residentialAddress"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth multiline rows={2} label="Residential Address" variant="outlined" error={!!errors.residentialAddress} helperText={errors.residentialAddress?.message} />
+                  )}
+                />
+              </Grid>
+
+              {/* SECTION: BANK & STATUTORY */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} sx={{ mb: 1, mt: 1 }}>
+                  BANK & STATUTORY DETAILS
+                </Typography>
+                <Divider />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="bankName"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Bank Name" variant="outlined" error={!!errors.bankName} helperText={errors.bankName?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="bankAccountNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Account Number" variant="outlined" error={!!errors.bankAccountNumber} helperText={errors.bankAccountNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="bankIfscCode"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="IFSC Code" variant="outlined" error={!!errors.bankIfscCode} helperText={errors.bankIfscCode?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="pfNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="PF Number" variant="outlined" error={!!errors.pfNumber} helperText={errors.pfNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="uanNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="UAN Number" variant="outlined" error={!!errors.uanNumber} helperText={errors.uanNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="esicNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="ESIC Number" variant="outlined" error={!!errors.esicNumber} helperText={errors.esicNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="linNumber"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="LIN Number" variant="outlined" error={!!errors.linNumber} helperText={errors.linNumber?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="form11Number"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Form 11 Number" variant="outlined" error={!!errors.form11Number} helperText={errors.form11Number?.message} />
+                  )}
+                />
+              </Grid>
+
+              {/* SECTION: STATUTORY & VERIFICATION */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700} sx={{ mb: 1, mt: 1 }}>
+                  STATUTORY & VERIFICATION STATUS
+                </Typography>
+                <Divider />
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="policeVerificationStatus"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={<Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                      label="Police Verification Status"
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="residentialProofStatus"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={<Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                      label="Residential Proof Status"
+                    />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <Controller
+                  name="termsAndConditionsAccepted"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={<Checkbox checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                      label="Terms & Conditions Accepted"
                     />
                   )}
                 />
@@ -588,7 +907,11 @@ const EmployeesPage: React.FC = () => {
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>JOINING DATE</Typography>
-                      <Typography variant="body2" fontWeight={600}>{employeeDetails.joiningDate ? new Date(employeeDetails.joiningDate).toLocaleDateString() : '-'}</Typography>
+                      <Typography variant="body2" fontWeight={600}>
+                        {employeeDetails.joiningDate || employeeDetails.enrollmentDate 
+                          ? new Date(employeeDetails.joiningDate || employeeDetails.enrollmentDate).toLocaleDateString() 
+                          : '-'}
+                      </Typography>
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>FACE REGISTRATION STATUS</Typography>
@@ -676,8 +999,8 @@ const EmployeesPage: React.FC = () => {
                                 View File
                               </Button>
                               <Chip 
-                                label={doc.isVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
-                                color={doc.isVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
+                                label={(doc.isVerified || doc.verified) ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
+                                color={(doc.isVerified || doc.verified) ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
                                 size="small" 
                                 sx={{ fontWeight: 700, borderRadius: 1 }}
                               />
@@ -685,7 +1008,7 @@ const EmployeesPage: React.FC = () => {
                           </Box>
 
                           {/* Verification actions for admin */}
-                          {!doc.isVerified && (
+                          {!(doc.isVerified || doc.verified) && (
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
                               <Box sx={{ display: 'flex', gap: 2 }}>
                                 <Button 
