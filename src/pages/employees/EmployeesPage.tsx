@@ -13,6 +13,7 @@ import { DataTable } from '../../components/common/DataTable';
 import { EmployeeService } from '../../api/employee.service';
 import apiClient from '../../api/client';
 import type { Employee } from '../../types/employee';
+import { useAuthStore } from '../../stores/auth.store';
 
 const Typography = MuiTypography as any;
 
@@ -68,6 +69,8 @@ const EmployeesPage: React.FC = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+  const isSupervisor = user?.role === 'SUPERVISOR';
   
   const [employeeToDelete, setEmployeeToDelete] = React.useState<Employee | null>(null);
   const [employeeToEdit, setEmployeeToEdit] = React.useState<Employee | null>(null);
@@ -378,11 +381,13 @@ const EmployeesPage: React.FC = () => {
               <EditIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => handleDeleteClick(params.row as Employee)}>
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {!isSupervisor && (
+            <Tooltip title="Delete">
+              <IconButton size="small" color="error" onClick={() => handleDeleteClick(params.row as Employee)}>
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       ),
     },
@@ -726,7 +731,7 @@ const EmployeesPage: React.FC = () => {
                   name="role"
                   control={control}
                   render={({ field }) => (
-                    <TextField {...field} fullWidth select label="Role" variant="outlined" error={!!errors.role} helperText={errors.role?.message}>
+                    <TextField {...field} fullWidth select label="Role" variant="outlined" error={!!errors.role} helperText={errors.role?.message} disabled={isSupervisor}>
                       <MenuItem value="EMPLOYEE">Employee</MenuItem>
                       <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
                       <MenuItem value="ADMIN">Admin</MenuItem>
@@ -741,7 +746,7 @@ const EmployeesPage: React.FC = () => {
                   name="siteId"
                   control={control}
                   render={({ field }) => (
-                    <TextField {...field} fullWidth select label="Assigned Site" variant="outlined" error={!!errors.siteId} helperText={errors.siteId?.message}>
+                    <TextField {...field} fullWidth select label="Assigned Site" variant="outlined" error={!!errors.siteId} helperText={errors.siteId?.message} disabled={isSupervisor}>
                       <MenuItem value=""><em>Unassigned</em></MenuItem>
                       {((sitesData as any)?.data || []).map((site: any) => (
                         <MenuItem key={site.id} value={site.id}>{site.name}</MenuItem>
@@ -1200,7 +1205,7 @@ const EmployeesPage: React.FC = () => {
                               </Box>
                             </Box>
 
-                            {!isDocVerified && (
+                            {!isDocVerified && !isSupervisor && (
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
                                 <Box sx={{ display: 'flex', gap: 2 }}>
                                   <Button 

@@ -35,6 +35,7 @@ import {
   RadioGroup,
   Radio,
   FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   Payments as PayrollIcon,
@@ -52,6 +53,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import apiClient from '../../api/client';
+import { SiteService } from '../../api/site.service';
 import { format } from 'date-fns';
 import logoImg from '../../assets/FM-LOGO.jpeg';
 
@@ -115,6 +117,7 @@ interface Site {
   id: string;
   name: string;
   isPayrollVisible?: boolean;
+  isFixedPayroll?: boolean;
 }
 
 interface SalaryStructure {
@@ -162,6 +165,15 @@ export default function PayrollPage() {
   const [payslipsLoading, setPayslipsLoading] = useState<Record<string, boolean>>({});
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Edit payslip states
+  const [editPayslipOpen, setEditPayslipOpen] = useState(false);
+  const [editingSlip, setEditingSlip] = useState<any>(null);
+  const [editDaysWorked, setEditDaysWorked] = useState('');
+  const [editOtherDeductions, setEditOtherDeductions] = useState('');
+  const [updatingPayslip, setUpdatingPayslip] = useState(false);
+  const [editPayslipError, setEditPayslipError] = useState<string | null>(null);
+  const [updatingFixedPayroll, setUpdatingFixedPayroll] = useState<string | null>(null);
 
   // Salary structures states
   const [configOpen, setConfigOpen] = useState(false);
@@ -229,7 +241,7 @@ export default function PayrollPage() {
 
   const { data: sitesData } = useQuery({
     queryKey: ['sites-payroll'],
-    queryFn: () => apiClient.get('/sites?limit=100'),
+    queryFn: () => SiteService.getSites(),
   });
 
   const { data: employeesData, isLoading: employeesLoading, refetch: refetchEmployees } = useQuery({
@@ -341,6 +353,73 @@ export default function PayrollPage() {
       alert('Failed to download payslip: ' + (err?.message || err));
     }
   };
+
+  const handleToggleFixedPayroll = async (siteId: string, currentValue: boolean) => {
+    setUpdatingFixedPayroll(siteId);
+    setActionError(null);
+    try {
+      await SiteService.updateSite(siteId, { isFixedPayroll: !currentValue });
+      queryClient.invalidateQueries({ queryKey: ['sites-payroll'] });
+    } catch (err: any) {
+      setActionError(err?.response?.data?.error?.message || err?.message || 'Failed to update Fixed Payroll setting.');
+    } finally {
+      setUpdatingFixedPayroll(null);
+    }
+  };
+
+  const handleEditPayslipClick = (slip: any) => {
+    setEditingSlip(slip);
+    setEditDaysWorked(String(slip.daysWorked || 0));
+    setEditOtherDeductions(String(slip.otherDeductions || 0));
+    setEditPayslipError(null);
+    setEditPayslipOpen(true);
+  };
+
+  const handleSavePayslipEdit = async () => {
+    if (!editingSlip) return;
+    setUpdatingPayslip(true);
+    setEditPayslipError(null);
+    try {
+      await apiClient.put(`/payroll/payslips/${editingSlip.id}`, {
+        daysWorked: Number(editDaysWorked),
+        otherDeductions: Number(editOtherDeductions),
+      });
+      setEditPayslipOpen(false);
+      
+      queryClient.invalidateQueries({ queryKey: ['payroll-runs'] });
+      
+      setPayslipsMap(prev => {
+        const copy = { ...prev };
+        delete copy[editingSlip.payrollRunId];
+        return copy;
+      });
+      
+      const runId = editingSlip.payrollRunId;
+      try {
+        const res: any = await apiClient.get(`/payroll/run/${runId}/payslips`);
+        const slips = Array.isArray(res) ? res : res?.data || [];
+        setPayslipsMap((prev) => ({ ...prev, [runId]: slips }));
+      } catch {
+        // ignore
+      }
+    } catch (err: any) {
+      setEditPayslipError(err?.response?.data?.error?.message || err?.message || 'Failed to update payslip.');
+    } finally {
+      setUpdatingPayslip(false);
+    }
+  };
+
+  const liveNetPay = useMemo(() => {
+    if (!editingSlip) return 0;
+    const gross = Number(editingSlip.grossEarnings) || 0;
+    const pf = Number(editingSlip.pfDeduction) || 0;
+    const esic = Number(editingSlip.esicDeduction) || 0;
+    const tds = Number(editingSlip.tdsDeduction) || 0;
+    const pt = Number(editingSlip.ptDeduction) || 0;
+    const mlwf = Number(editingSlip.mlwfAmount) || 0;
+    const other = parseFloat(editOtherDeductions) || 0;
+    return gross - (pf + esic + tds + pt + mlwf) - other;
+  }, [editingSlip, editOtherDeductions]);
 
   // Configure Salary Structure Handler
   const handleConfigureSalary = async (emp: Employee, structure: SalaryStructure | null) => {
@@ -878,7 +957,7 @@ export default function PayrollPage() {
                                             <TableCell sx={{ fontWeight: 800 }} align="right">Gross</TableCell>
                                             <TableCell sx={{ fontWeight: 800 }} align="right">Deductions</TableCell>
                                             <TableCell sx={{ fontWeight: 800 }} align="right">Net Pay</TableCell>
-                                            <TableCell sx={{ fontWeight: 800 }} align="center">PDF</TableCell>
+                                            <TableCell sx={{ fontWeight: 800 }} align="center">Actions</TableCell>
                                           </TableRow>
                                         </TableHead>
                                         <TableBody>
@@ -890,9 +969,16 @@ export default function PayrollPage() {
                                               <TableCell align="right" sx={{ color: 'error.main' }}>{INR(slip.totalDeductions)}</TableCell>
                                               <TableCell align="right" sx={{ fontWeight: 700 }}>{INR(slip.netPayable)}</TableCell>
                                               <TableCell align="center">
-                                                <IconButton size="small" color="primary" onClick={() => handleDownloadPdf(slip.id)}>
-                                                  <DownloadIcon fontSize="small" />
-                                                </IconButton>
+                                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                                  {slip.status === 'PENDING_APPROVAL' && (
+                                                    <IconButton size="small" color="secondary" onClick={() => handleEditPayslipClick(slip)}>
+                                                      <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                  )}
+                                                  <IconButton size="small" color="primary" onClick={() => handleDownloadPdf(slip.id)}>
+                                                    <DownloadIcon fontSize="small" />
+                                                  </IconButton>
+                                                </Box>
                                               </TableCell>
                                             </TableRow>
                                           ))}
@@ -923,18 +1009,41 @@ export default function PayrollPage() {
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                             <Box>
                               <Typography variant="h6" fontWeight={850}>{selectedSite?.name}</Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.5 }}>
-                                <Box
-                                  sx={{
-                                    width: 7, height: 7, borderRadius: '50%',
-                                    backgroundColor: selectedSite?.isPayrollVisible ? 'success.main' : 'text.disabled'
-                                  }}
-                                />
-                                {selectedSite?.isPayrollVisible ? 'Payroll visible to employees' : 'Payroll hidden from employees'}
-                              </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 0.5 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box
+                                    sx={{
+                                      width: 7, height: 7, borderRadius: '50%',
+                                      backgroundColor: selectedSite?.isPayrollVisible ? 'success.main' : 'text.disabled'
+                                    }}
+                                  />
+                                  {selectedSite?.isPayrollVisible ? 'Payroll visible to employees' : 'Payroll hidden from employees'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                                  <Box
+                                    sx={{
+                                      width: 7, height: 7, borderRadius: '50%',
+                                      backgroundColor: selectedSite?.isFixedPayroll ? 'primary.main' : 'text.disabled'
+                                    }}
+                                  />
+                                  {selectedSite?.isFixedPayroll ? 'Fixed Payroll enabled by default' : 'Attendance pro-rated payroll'}
+                                </Typography>
+                              </Box>
                             </Box>
                             
                             <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                              <FormControlLabel
+                                control={
+                                  <Switch
+                                    size="small"
+                                    checked={!!selectedSite?.isFixedPayroll}
+                                    disabled={updatingFixedPayroll === selectedSiteId}
+                                    onChange={() => handleToggleFixedPayroll(selectedSiteId, !!selectedSite?.isFixedPayroll)}
+                                  />
+                                }
+                                label={<Typography variant="body2" fontWeight={700}>Fixed Payroll</Typography>}
+                                sx={{ mr: 1 }}
+                              />
                               <TextField
                                 select
                                 size="small"
@@ -1117,32 +1226,39 @@ export default function PayrollPage() {
                                       ) : (
                                         <TableContainer>
                                           <Table size="small">
-                                            <TableHead>
-                                              <TableRow>
-                                                <TableCell sx={{ fontWeight: 800 }}>Employee</TableCell>
-                                                <TableCell sx={{ fontWeight: 800 }} align="center">Days Worked</TableCell>
-                                                <TableCell sx={{ fontWeight: 800 }} align="right">Gross</TableCell>
-                                                <TableCell sx={{ fontWeight: 800 }} align="right">Deductions</TableCell>
-                                                <TableCell sx={{ fontWeight: 800 }} align="right">Net Pay</TableCell>
-                                                <TableCell sx={{ fontWeight: 800 }} align="center">PDF</TableCell>
-                                              </TableRow>
-                                            </TableHead>
-                                            <TableBody>
-                                              {payslips.map((slip: any) => (
-                                                <TableRow key={slip.id} hover>
-                                                  <TableCell sx={{ fontWeight: 600 }}>{slip.employeeName || 'Operator'}</TableCell>
-                                                  <TableCell align="center">{slip.daysWorked}</TableCell>
-                                                  <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{INR(slip.grossEarnings)}</TableCell>
-                                                  <TableCell align="right" sx={{ color: 'error.main' }}>{INR(slip.totalDeductions)}</TableCell>
-                                                  <TableCell align="right" sx={{ fontWeight: 700 }}>{INR(slip.netPayable)}</TableCell>
-                                                  <TableCell align="center">
+                                          <TableHead>
+                                            <TableRow>
+                                              <TableCell sx={{ fontWeight: 800 }}>Employee</TableCell>
+                                              <TableCell sx={{ fontWeight: 800 }} align="center">Days Worked</TableCell>
+                                              <TableCell sx={{ fontWeight: 800 }} align="right">Gross</TableCell>
+                                              <TableCell sx={{ fontWeight: 800 }} align="right">Deductions</TableCell>
+                                              <TableCell sx={{ fontWeight: 800 }} align="right">Net Pay</TableCell>
+                                              <TableCell sx={{ fontWeight: 800 }} align="center">Actions</TableCell>
+                                            </TableRow>
+                                          </TableHead>
+                                          <TableBody>
+                                            {payslips.map((slip: any) => (
+                                              <TableRow key={slip.id} hover>
+                                                <TableCell sx={{ fontWeight: 600 }}>{slip.employeeName || 'Operator'}</TableCell>
+                                                <TableCell align="center">{slip.daysWorked}</TableCell>
+                                                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>{INR(slip.grossEarnings)}</TableCell>
+                                                <TableCell align="right" sx={{ color: 'error.main' }}>{INR(slip.totalDeductions)}</TableCell>
+                                                <TableCell align="right" sx={{ fontWeight: 700 }}>{INR(slip.netPayable)}</TableCell>
+                                                <TableCell align="center">
+                                                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                                                    {slip.status === 'PENDING_APPROVAL' && (
+                                                      <IconButton size="small" color="secondary" onClick={() => handleEditPayslipClick(slip)}>
+                                                        <EditIcon fontSize="small" />
+                                                      </IconButton>
+                                                    )}
                                                     <IconButton size="small" color="primary" onClick={() => handleDownloadPdf(slip.id)}>
                                                       <DownloadIcon fontSize="small" />
                                                     </IconButton>
-                                                  </TableCell>
-                                                </TableRow>
-                                              ))}
-                                            </TableBody>
+                                                  </Box>
+                                                </TableCell>
+                                              </TableRow>
+                                            ))}
+                                          </TableBody>
                                           </Table>
                                         </TableContainer>
                                       )}
@@ -1805,6 +1921,75 @@ export default function PayrollPage() {
             )}
           </DialogActions>
         </Box>
+      </Dialog>
+
+      {/* Edit Payslip Dialog */}
+      <Dialog 
+        open={editPayslipOpen} 
+        onClose={() => !updatingPayslip && setEditPayslipOpen(false)} 
+        maxWidth="xs" 
+        fullWidth 
+        slotProps={{ paper: { sx: { borderRadius: 4 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EditIcon color="primary" /> 
+            Edit Payslip
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {editPayslipError && <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setEditPayslipError(null)}>{editPayslipError}</Alert>}
+          
+          <Box sx={{ mb: 2.5 }}>
+            <Typography variant="subtitle2" fontWeight={800} color="text.secondary">
+              Employee Name
+            </Typography>
+            <Typography variant="body1" fontWeight={700}>
+              {editingSlip?.employeeName || 'Operator'}
+            </Typography>
+          </Box>
+
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Days Worked"
+                size="small"
+                type="number"
+                value={editDaysWorked}
+                onChange={(e) => setEditDaysWorked(e.target.value)}
+                slotProps={{ input: { sx: { borderRadius: 2 } } }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Deduction Amount (Other)"
+                size="small"
+                type="number"
+                value={editOtherDeductions}
+                onChange={(e) => setEditOtherDeductions(e.target.value)}
+                slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                helperText="Amount to deduct from employee net payable"
+              />
+            </Grid>
+          </Grid>
+
+          <Box sx={{ mt: 3, p: 2, borderRadius: 2, backgroundColor: alpha(theme.palette.primary.main, 0.04), border: '1px solid', borderColor: alpha(theme.palette.primary.main, 0.1) }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={750} display="block">
+              ESTIMATED ADJUSTED NET PAY
+            </Typography>
+            <Typography variant="h5" fontWeight={900} color="primary.main">
+              {INR(liveNetPay)}
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setEditPayslipOpen(false)} color="inherit" disabled={updatingPayslip}>Cancel</Button>
+          <Button variant="contained" disabled={updatingPayslip} onClick={handleSavePayslipEdit} sx={{ borderRadius: 2, fontWeight: 700, px: 3 }}>
+            {updatingPayslip ? <CircularProgress size={20} color="inherit" /> : 'Save Changes'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );

@@ -142,8 +142,8 @@ export const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <MenuItem onClick={handleClose}>Profile</MenuItem>
-              <MenuItem onClick={handleClose}>My Account</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>My Account</MenuItem>
               <Divider sx={{ my: 1 }} />
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>

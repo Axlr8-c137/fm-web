@@ -12,6 +12,7 @@ import OperationsPage from './pages/ops/OperationsPage';
 import PayrollPage from './pages/payroll/PayrollPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+import ProfilePage from './pages/profile/ProfilePage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleProtectedRoute } from './components/auth/RoleProtectedRoute';
@@ -51,12 +52,17 @@ function App() {
           
           <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE']} />}>
             <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="profile" element={<ProfilePage />} />
           </Route>
           
-          {/* Admin & Super Admin Only Routes */}
-          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} />}>
+          {/* Employees access for Admin, Super Admin & Supervisor */}
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR']} />}>
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="employees/onboard" element={<EmployeeOnboardingPage />} />
+          </Route>
+
+          {/* Admin & Super Admin Only Routes */}
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']} />}>
             <Route path="sites" element={<SiteListPage />} />
             <Route path="sites/:id" element={<SiteDetailsPage />} />
             <Route path="admin" element={<AdminSettingsPage />} />

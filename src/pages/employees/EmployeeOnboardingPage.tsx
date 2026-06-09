@@ -91,6 +91,7 @@ export default function EmployeeOnboardingPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const user = useAuthStore((state) => state.user);
+  const isSupervisor = user?.role === 'SUPERVISOR';
 
   const [activeStep, setActiveStep] = useState(0);
   const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null);
@@ -372,6 +373,7 @@ export default function EmployeeOnboardingPage() {
                       {...field}
                       fullWidth select label="Role" variant="outlined"
                       error={!!errors.role} helperText={errors.role?.message}
+                      disabled={isSupervisor}
                       slotProps={{ input: { sx: { borderRadius: 2 } } }}
                     >
                       <MenuItem value="EMPLOYEE">Employee</MenuItem>
@@ -426,44 +428,46 @@ export default function EmployeeOnboardingPage() {
                 </Grid>
               )}
 
-              {/* Site assignment — shown for all roles once sites are available */}
-              <Grid size={{ xs: 12 }}>
-                <Controller
-                  name="siteId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth select label="Assign Site (Optional)" variant="outlined"
-                      disabled={sitesLoading || sites.length === 0}
-                      helperText={
-                        sitesLoading
-                          ? 'Loading sites…'
-                          : sites.length === 0
-                            ? user?.role === 'SUPER_ADMIN'
-                              ? 'Select an organization first to see its sites'
-                              : 'No active sites found for your organization'
-                            : 'Select the site this employee will be assigned to'
-                      }
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    >
-                      <MenuItem value=""><em>No Site Assigned</em></MenuItem>
-                      {sites.map((site: any) => (
-                        <MenuItem key={site.id} value={site.id}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 600 }}>{site.name}</span>
-                            {site.address && (
-                              <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                                {site.address}
-                              </span>
-                            )}
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Grid>
+              {/* Site assignment — shown for non-supervisor roles once sites are available */}
+              {!isSupervisor && (
+                <Grid size={{ xs: 12 }}>
+                  <Controller
+                    name="siteId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth select label="Assign Site (Optional)" variant="outlined"
+                        disabled={sitesLoading || sites.length === 0}
+                        helperText={
+                          sitesLoading
+                            ? 'Loading sites…'
+                            : sites.length === 0
+                              ? user?.role === 'SUPER_ADMIN'
+                                ? 'Select an organization first to see its sites'
+                                : 'No active sites found for your organization'
+                              : 'Select the site this employee will be assigned to'
+                        }
+                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                      >
+                        <MenuItem value=""><em>No Site Assigned</em></MenuItem>
+                        {sites.map((site: any) => (
+                          <MenuItem key={site.id} value={site.id}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 600 }}>{site.name}</span>
+                              {site.address && (
+                                <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                  {site.address}
+                                </span>
+                              )}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+              )}
             </Grid>
           </Box>
         );
