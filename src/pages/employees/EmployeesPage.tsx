@@ -61,6 +61,8 @@ const editSchema = z.object({
   policeVerificationStatus: z.boolean().optional(),
   residentialProofStatus: z.boolean().optional(),
   termsAndConditionsAccepted: z.boolean().optional(),
+  aadhaar: z.string().regex(/^$|^\d{12}$/, 'Aadhaar must be exactly 12 digits').optional().or(z.literal('')),
+  pan: z.string().regex(/^$|^[A-Z]{5}\d{4}[A-Z]$/, 'Invalid PAN format').optional().or(z.literal('')),
   siteId: z.string().optional().or(z.literal('')),
 });
 type EditSchema = z.infer<typeof editSchema>;
@@ -128,6 +130,8 @@ const EmployeesPage: React.FC = () => {
       policeVerificationStatus: employee.policeVerificationStatus || false,
       residentialProofStatus: employee.residentialProofStatus || false,
       termsAndConditionsAccepted: employee.termsAndConditionsAccepted || false,
+      aadhaar: employee.aadhaar || '',
+      pan: employee.pan || '',
       siteId: employee.siteId || '',
     });
     setEmployeeToEdit(employee);
@@ -177,6 +181,8 @@ const EmployeesPage: React.FC = () => {
         policeVerificationStatus: data.policeVerificationStatus || false,
         residentialProofStatus: data.residentialProofStatus || false,
         termsAndConditionsAccepted: data.termsAndConditionsAccepted || false,
+        aadhaar: data.aadhaar || "",
+        pan: data.pan || "",
         siteId: data.siteId || null,
       };
       await EmployeeService.updateEmployee(employeeToEdit.id, payload);
@@ -850,6 +856,24 @@ const EmployeesPage: React.FC = () => {
                   )}
                 />
               </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="aadhaar"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="Aadhaar Number" variant="outlined" error={!!errors.aadhaar} helperText={errors.aadhaar?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="pan"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="PAN Number" variant="outlined" error={!!errors.pan} helperText={errors.pan?.message} />
+                  )}
+                />
+              </Grid>
 
               {/* SECTION: STATUTORY & VERIFICATION */}
               <Grid size={{ xs: 12 }}>
@@ -1107,6 +1131,14 @@ const EmployeesPage: React.FC = () => {
                       <Grid size={{ xs: 12, md: 4 }}>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>FORM 11 NUMBER</Typography>
                         <Typography variant="body2" fontWeight={600}>{employeeDetails.form11Number || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>AADHAAR NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.aadhaar || '-'}</Typography>
+                      </Grid>
+                      <Grid size={{ xs: 12, md: 4 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>PAN NUMBER</Typography>
+                        <Typography variant="body2" fontWeight={600}>{employeeDetails.pan || '-'}</Typography>
                       </Grid>
                     </Grid>
                   </Paper>
