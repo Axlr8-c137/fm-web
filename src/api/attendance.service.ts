@@ -25,8 +25,19 @@ export const AttendanceService = {
   },
 
   getTodayAttendance: async (siteId?: string) => {
-    const url = siteId ? `/attendance/site/${siteId}` : '/attendance/today';
-    return apiClient.get<ApiResponse<AttendanceReport[]>>(url);
+    if (!siteId) {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const res = await AttendanceService.getLogs({
+        start: todayStart.toISOString(),
+        end: todayEnd.toISOString(),
+        limit: 1000 // Get a large batch for today
+      });
+      return (res.data as any) || []; // Extract the raw array
+    }
+    return apiClient.get<any>(`/attendance/site/${siteId}`);
   },
 
   getReport: async (params: {

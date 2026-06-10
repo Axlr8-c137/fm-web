@@ -45,7 +45,7 @@ const basicInfoSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().min(10, 'Phone is required'),
+  phone: z.string().regex(/^\+91 \d{10}$/, 'Phone must be +91 followed by 10 digits'),
   role: z.string(),
   joiningDate: z.date(),
   organizationId: z.string().optional(),
@@ -158,7 +158,7 @@ export default function EmployeeOnboardingPage() {
       firstName: '',
       lastName: '',
       email: '',
-      phone: '',
+      phone: '+91 ',
       role: 'EMPLOYEE',
       joiningDate: new Date(),
       organizationId: '',
@@ -195,7 +195,7 @@ export default function EmployeeOnboardingPage() {
       const payload: any = {
         fullName: `${data.firstName} ${data.lastName}`,
         email: data.email,
-        phone: data.phone,
+        phone: data.phone.replace(/\s+/g, ''),
         role: data.role,
         status: 'ACTIVE',
         enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
@@ -360,6 +360,21 @@ export default function EmployeeOnboardingPage() {
                       fullWidth label="Phone" placeholder="+91 98765 43210" variant="outlined"
                       error={!!errors.phone} helperText={errors.phone?.message}
                       slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (!val.startsWith('+91 ')) {
+                          if (val.startsWith('+91')) {
+                            val = '+91 ' + val.substring(3).trim();
+                          } else if (val.startsWith('+')) {
+                            val = '+91 ' + val.substring(1).replace(/\D/g, '');
+                          } else {
+                            val = '+91 ' + val.replace(/\D/g, '');
+                          }
+                        }
+                        let digits = val.substring(4).replace(/\D/g, '');
+                        if (digits.length > 10) digits = digits.substring(0, 10);
+                        field.onChange('+91 ' + digits);
+                      }}
                     />
                   )}
                 />

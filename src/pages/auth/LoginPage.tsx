@@ -27,6 +27,8 @@ import {
   PhoneAndroid as PhoneIcon
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/auth.store';
+import { Logo } from '../../components/common';
+
 
 const LoginPage: React.FC = () => {
   const theme = useTheme();
@@ -136,75 +138,137 @@ const LoginPage: React.FC = () => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'center',
-        background: otpSent 
-          ? `linear-gradient(135deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`
-          : (theme) => theme.palette.mode === 'light' 
-            ? 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-            : 'linear-gradient(135deg, #121212 0%, #1e1e1e 100%)',
+        background: (theme) => theme.palette.mode === 'light' 
+          ? 'linear-gradient(135deg, #f3f7f5 0%, #eef3f1 50%, #e5edea 100%)'
+          : 'linear-gradient(135deg, #0b1513 0%, #0d1e1a 50%, #060a09 100%)',
         py: 4,
+        position: 'relative',
+        overflow: 'hidden',
         transition: 'background 0.5s ease'
       }}
     >
-      <Container maxWidth="sm">
+      {/* Decorative Glow Blob 1 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: '10%',
+          left: '10%',
+          width: { xs: '200px', md: '350px' },
+          height: { xs: '200px', md: '350px' },
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(204, 164, 59, 0.12) 0%, rgba(204, 164, 59, 0) 70%)',
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      {/* Decorative Glow Blob 2 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: '10%',
+          right: '10%',
+          width: { xs: '250px', md: '400px' },
+          height: { xs: '250px', md: '400px' },
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(23, 83, 70, 0.18) 0%, rgba(23, 83, 70, 0) 70%)',
+          filter: 'blur(70px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+
+      <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
         <Paper 
-          elevation={6} 
+          elevation={0} 
           sx={{ 
-            p: { xs: 3, md: 6 }, 
-            borderRadius: '16px',
+            p: { xs: 3, md: 5 }, 
+            borderRadius: '24px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            backgroundColor: 'background.paper'
+            backgroundColor: (theme) => theme.palette.mode === 'light' 
+              ? 'rgba(255, 255, 255, 0.82)' 
+              : 'rgba(18, 30, 27, 0.75)',
+            backdropFilter: 'blur(20px)',
+            border: (theme) => theme.palette.mode === 'light'
+              ? '1px solid rgba(12, 52, 43, 0.08)'
+              : '1px solid rgba(204, 164, 59, 0.18)',
+            boxShadow: (theme) => theme.palette.mode === 'light'
+              ? '0 20px 40px -15px rgba(12, 52, 43, 0.08), 0 15px 25px -10px rgba(0, 0, 0, 0.03)'
+              : '0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
           }}
         >
-          {!otpSent && (
-            <Box sx={{ mb: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BusinessIcon color="primary" sx={{ fontSize: 40 }} />
-                <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
-                  FM PORTAL
-                </Typography>
-              </Box>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                  color: 'primary.main',
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 1,
-                  fontWeight: 800,
-                  letterSpacing: 1.2,
-                  mt: 0.5
-                }}
-              >
-                ADMIN LOGIN ONLY
-              </Typography>
-            </Box>
-          )}
+          {/* Logo with branding text */}
+          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <Logo 
+              size={90} 
+              showText={true} 
+              textColor={theme.palette.mode === 'light' ? '#0c342b' : '#ffffff'}
+              subTextColor={theme.palette.mode === 'light' ? '#9a7d23' : '#CCA43B'}
+              hoverEffect={true}
+            />
+            
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                backgroundColor: (theme) => theme.palette.mode === 'light'
+                  ? 'rgba(12, 52, 43, 0.06)'
+                  : 'rgba(204, 164, 59, 0.12)',
+                color: (theme) => theme.palette.mode === 'light'
+                  ? '#0c342b'
+                  : '#CCA43B',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: '6px',
+                fontWeight: 800,
+                letterSpacing: 1.2,
+                mt: 1.5,
+                fontSize: '0.65rem'
+              }}
+            >
+              SECURE FACILITY ACCESS
+            </Typography>
+          </Box>
 
           {!otpSent && (
             <Tabs 
               value={loginMode} 
               onChange={handleModeChange} 
               centered 
-              sx={{ mb: 4, width: '100%' }}
+              sx={{ 
+                mb: 3, 
+                width: '100%',
+                '& .MuiTabs-indicator': {
+                  backgroundColor: '#CCA43B',
+                  height: 3,
+                  borderRadius: 1.5
+                },
+                '& .MuiTab-root': {
+                  fontWeight: 600,
+                  fontSize: '0.95rem',
+                  color: (theme) => alpha(theme.palette.text.primary, 0.5),
+                  '&.Mui-selected': {
+                    color: (theme) => theme.palette.mode === 'light' ? '#0c342b' : '#ffffff',
+                  }
+                }
+              }}
             >
               <Tab label="Password" value="password" />
               <Tab label="OTP Login" value="otp" />
             </Tabs>
           )}
 
-          <Typography variant="h3" gutterBottom sx={{ fontSize: '32px', fontWeight: 700 }}>
-            {otpSent ? 'Verify Number' : 'Welcome'}
+          <Typography variant="h4" sx={{ fontSize: '24px', fontWeight: 800, mb: 1, color: 'text.primary' }}>
+            {otpSent ? 'Verify Number' : 'Welcome back'}
           </Typography>
           
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 4, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4, textAlign: 'center', maxWidth: '300px' }}>
             {otpSent 
               ? `A 6-digit code has been sent to +91 ${phone}` 
               : loginMode === 'password' 
-                ? 'Please enter your details to sign in.' 
-                : 'Enter your phone number to continue.'}
+                ? 'Enter your credentials to access your administrative dashboard.' 
+                : 'Enter your phone number to sign in via verification code.'}
           </Typography>
 
           {error && (

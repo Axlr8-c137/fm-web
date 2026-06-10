@@ -4,7 +4,7 @@ import apiClient from '../api/client';
 interface User {
   id: string;
   email: string;
-  role: 'ADMIN' | 'SUPERVISOR' | 'PAYROLL_ADMIN' | 'SUPER_ADMIN' | 'EMPLOYEE';
+  role: 'ADMIN' | 'SUPERVISOR' | 'PAYROLL_ADMIN' | 'SUPER_ADMIN' | 'EMPLOYEE' | 'CLIENT';
   name: string;
   organizationId?: string;
 }
@@ -33,8 +33,9 @@ async function buildUserObject(userData: any, set: any): Promise<User> {
   let realName = userData.name || userData.fullName || (userData.firstName ? `${userData.firstName} ${userData.lastName || ''}`.trim() : null) || 
               userData.user?.name || userData.user?.fullName || (userData.user?.firstName ? `${userData.user.firstName} ${userData.user.lastName || ''}`.trim() : null);
 
-  // 2. If no name found in payload, fetch from /v1/employees/me
-  if (!realName && userData.accessToken) {
+  // 2. If no name found in payload, fetch from /v1/employees/me (Skip for CLIENTs as they don't have an employee record)
+  const isClient = userData.role === 'CLIENT' || userData.user?.role === 'CLIENT';
+  if (!realName && userData.accessToken && !isClient) {
     try {
       const meResponse: any = await apiClient.get('/employees/me');
       const data = meResponse.data || meResponse;

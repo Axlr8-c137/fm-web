@@ -122,6 +122,7 @@ export default function AttendanceLogsPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const hasManageAccess = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERVISOR';
 
   // State Management
   const [page, setPage] = useState(0);
@@ -197,8 +198,8 @@ export default function AttendanceLogsPage() {
   });
 
   const { data: employeesData } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => EmployeeService.getEmployees(),
+    queryKey: ['employees', 'all-sites'],
+    queryFn: () => EmployeeService.getEmployees(true),
   });
 
   const { data: sitesData } = useQuery({
@@ -243,6 +244,18 @@ export default function AttendanceLogsPage() {
       }
     }
   }, [manualSiteId, sitesMap, logToEdit, setValue]);
+
+  // Default site if only 1 site is available
+  useEffect(() => {
+    if (sites.length === 1 && !manualSiteId && !logToEdit) {
+      setValue('siteId', sites[0].id);
+    }
+  }, [sites, manualSiteId, logToEdit, setValue]);
+
+  const filteredFormEmployees = useMemo(() => {
+    if (!manualSiteId) return employees;
+    return employees.filter((emp: any) => emp.siteId === manualSiteId);
+  }, [employees, manualSiteId]);
 
   // Date preset ranges filter calculations
   const filteredLogs = useMemo(() => {
@@ -486,7 +499,7 @@ export default function AttendanceLogsPage() {
           >
             Export Logs
           </Button>
-          {isSuperAdmin && (
+          {hasManageAccess && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -755,7 +768,7 @@ export default function AttendanceLogsPage() {
                   <TableCell sx={{ fontWeight: 750 }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 750 }}>Geofence</TableCell>
                   <TableCell sx={{ fontWeight: 750 }}>Biometrics Match</TableCell>
-                  {isSuperAdmin && <TableCell sx={{ fontWeight: 750 }} align="center">Actions</TableCell>}
+                  {hasManageAccess && <TableCell sx={{ fontWeight: 750 }} align="center">Actions</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -767,7 +780,7 @@ export default function AttendanceLogsPage() {
                       log={log}
                       site={site}
                       theme={theme}
-                      isSuperAdmin={isSuperAdmin}
+                      isSuperAdmin={hasManageAccess} // reuse prop for simplicity
                       onEdit={handleEditClick}
                       onDelete={(l) => setLogToDelete(l)}
                     />
@@ -810,30 +823,6 @@ export default function AttendanceLogsPage() {
               <Grid size={{ xs: 12, md: 6 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                   <Controller
-                    name="employeeId"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        select
-                        label="Select Employee"
-                        variant="outlined"
-                        error={!!errors.employeeId}
-                        helperText={errors.employeeId?.message}
-                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                      >
-                        <MenuItem value=""><em>Select Employee</em></MenuItem>
-                        {employees.map((emp: any) => (
-                          <MenuItem key={emp.id} value={emp.id}>
-                            {emp.fullName} ({emp.role})
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                  />
-
-                  <Controller
                     name="siteId"
                     control={control}
                     render={({ field }) => (
@@ -851,6 +840,31 @@ export default function AttendanceLogsPage() {
                         {sites.map((site: any) => (
                           <MenuItem key={site.id} value={site.id}>
                             {site.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    name="employeeId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        select
+                        label="Select Employee"
+                        variant="outlined"
+                        error={!!errors.employeeId}
+                        helperText={errors.employeeId?.message}
+                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        disabled={!manualSiteId && sites.length > 1}
+                      >
+                        <MenuItem value=""><em>Select Employee</em></MenuItem>
+                        {filteredFormEmployees.map((emp: any) => (
+                          <MenuItem key={emp.id} value={emp.id}>
+                            {emp.fullName} ({emp.role})
                           </MenuItem>
                         ))}
                       </TextField>

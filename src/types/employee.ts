@@ -9,6 +9,7 @@ export interface Employee {
   phone: string;
   role: EmployeeRole;
   status: EmployeeStatus;
+  approvalStatus?: 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
   siteName?: string;
   siteId?: string;
   joiningDate: string;
