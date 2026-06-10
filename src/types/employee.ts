@@ -40,6 +40,8 @@ export interface Employee {
   form11Number?: string;
   residentialProofStatus?: boolean;
   residentialAddress?: string;
+  city?: string;
+  state?: string;
   termsAndConditionsAccepted?: boolean;
   aadhaar?: string;
   pan?: string;

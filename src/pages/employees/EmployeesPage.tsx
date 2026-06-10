@@ -58,6 +58,8 @@ const editSchema = z.object({
   emergencyContactNumber: z.string().optional().or(z.literal('')),
   form11Number: z.string().optional().or(z.literal('')),
   residentialAddress: z.string().optional().or(z.literal('')),
+  city: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
   policeVerificationStatus: z.boolean().optional(),
   residentialProofStatus: z.boolean().optional(),
   termsAndConditionsAccepted: z.boolean().optional(),
@@ -127,6 +129,8 @@ const EmployeesPage: React.FC = () => {
       emergencyContactNumber: employee.emergencyContactNumber || '',
       form11Number: employee.form11Number || '',
       residentialAddress: employee.residentialAddress || '',
+      city: employee.city || '',
+      state: employee.state || '',
       policeVerificationStatus: employee.policeVerificationStatus || false,
       residentialProofStatus: employee.residentialProofStatus || false,
       termsAndConditionsAccepted: employee.termsAndConditionsAccepted || false,
@@ -178,6 +182,8 @@ const EmployeesPage: React.FC = () => {
         emergencyContactNumber: data.emergencyContactNumber || "",
         form11Number: data.form11Number || "",
         residentialAddress: data.residentialAddress || "",
+        city: data.city || "",
+        state: data.state || "",
         policeVerificationStatus: data.policeVerificationStatus || false,
         residentialProofStatus: data.residentialProofStatus || false,
         termsAndConditionsAccepted: data.termsAndConditionsAccepted || false,
@@ -687,6 +693,24 @@ const EmployeesPage: React.FC = () => {
                   )}
                 />
               </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="city"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="City" variant="outlined" error={!!errors.city} helperText={errors.city?.message} />
+                  )}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Controller
+                  name="state"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField {...field} fullWidth label="State" variant="outlined" error={!!errors.state} helperText={errors.state?.message} />
+                  )}
+                />
+              </Grid>
 
               {/* SECTION: WORK PROFILE */}
               <Grid size={{ xs: 12 }}>
@@ -1032,6 +1056,14 @@ const EmployeesPage: React.FC = () => {
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>RESIDENTIAL ADDRESS</Typography>
                       <Typography variant="body2" fontWeight={600}>{employeeDetails.residentialAddress || '-'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>CITY</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.city || '-'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>STATE</Typography>
+                      <Typography variant="body2" fontWeight={600}>{employeeDetails.state || '-'}</Typography>
                     </Box>
                   </Paper>
                 </Grid>
