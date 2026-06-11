@@ -56,12 +56,18 @@ export const AttendanceService = {
     return apiClient.get<ApiResponse<AttendanceReport[]>>(`/attendance/report?${queryParams.toString()}`);
   },
 
-  exportAttendance: async (entity: 'ATTENDANCE' | 'EMPLOYEES' | 'SITES', filters: any) => {
-    return apiClient.post<ApiResponse<{ downloadUrl: string }>>(`/admin/export/${entity}`, filters);
+  exportAttendance: async (entity: string, filters: any) => {
+    return apiClient.post(`/admin/export/${entity}`, filters, {
+      responseType: 'blob',
+    });
   },
 
   createManualLog: async (data: any) => {
     return apiClient.post<ApiResponse<AttendanceLog>>('/attendance/logs', data);
+  },
+
+  createBulkManualLog: async (data: any) => {
+    return apiClient.post<ApiResponse<AttendanceLog[]>>('/attendance/logs/bulk', data);
   },
 
   updateManualLog: async (id: string, data: any) => {

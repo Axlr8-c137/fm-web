@@ -374,13 +374,16 @@ export default function AttendanceLogsPage() {
         siteId: filterSiteId || undefined,
         start: filterDatePreset === 'TODAY' ? new Date(new Date().setHours(0,0,0,0)).toISOString() : undefined,
       };
-      const res: any = await AttendanceService.exportAttendance('ATTENDANCE', filters);
-      const downloadUrl = res?.data?.downloadUrl || (res as any)?.downloadUrl;
-      if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
-      } else {
-        alert('Export successfully processed, check admin exports panel.');
-      }
+      const res: any = await AttendanceService.exportAttendance('attendance', filters);
+      const blob = new Blob([res], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `attendance_export_${format(new Date(), 'yyyyMMdd')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Export failed', err);
       alert('Failed to export data: ' + (err.message || 'Server error'));
@@ -443,6 +446,15 @@ export default function AttendanceLogsPage() {
 
       if (logToEdit) {
         await AttendanceService.updateManualLog(logToEdit.id, payload);
+      } else if (formData.employeeId === 'ALL') {
+        const bulkPayload = {
+          siteId: formData.siteId,
+          punchType: formData.punchType,
+          punchTime: new Date(formData.punchTime).toISOString(),
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+        };
+        await AttendanceService.createBulkManualLog(bulkPayload);
       } else {
         await AttendanceService.createManualLog(payload);
       }
@@ -862,6 +874,11 @@ export default function AttendanceLogsPage() {
                         disabled={!manualSiteId && sites.length > 1}
                       >
                         <MenuItem value=""><em>Select Employee</em></MenuItem>
+                        {!logToEdit && manualSiteId && filteredFormEmployees.length > 0 && (
+                          <MenuItem value="ALL">
+                            <strong>All Employees ({filteredFormEmployees.length})</strong>
+                          </MenuItem>
+                        )}
                         {filteredFormEmployees.map((emp: any) => (
                           <MenuItem key={emp.id} value={emp.id}>
                             {emp.fullName} ({emp.role})

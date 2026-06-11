@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme, Divider, FormControlLabel, Checkbox } from '@mui/material';
+import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme, Divider, FormControlLabel, Checkbox, InputAdornment } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon, Badge as BadgeIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon, Badge as BadgeIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '../../components/common/DataTable';
@@ -81,6 +81,8 @@ const EmployeesPage: React.FC = () => {
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [showSecondConfirm, setShowSecondConfirm] = React.useState(false);
 
   // View Details & Verification States
   const [employeeToView, setEmployeeToView] = useState<Employee | null>(null);
@@ -205,6 +207,7 @@ const EmployeesPage: React.FC = () => {
 
   const handleDeleteClick = (employee: Employee) => {
     setEmployeeToDelete(employee);
+    setShowSecondConfirm(false);
   };
 
   const handleDeleteConfirm = async () => {
@@ -220,6 +223,7 @@ const EmployeesPage: React.FC = () => {
     } finally {
       setIsDeleting(false);
       setEmployeeToDelete(null);
+      setShowSecondConfirm(false);
     }
   };
 
@@ -388,11 +392,13 @@ const EmployeesPage: React.FC = () => {
               <ViewIcon fontSize="small" />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Edit">
-            <IconButton size="small" color="primary" onClick={() => handleEditClick(params.row as Employee)}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {!isSupervisor && (
+            <Tooltip title="Edit">
+              <IconButton size="small" color="primary" onClick={() => handleEditClick(params.row as Employee)}>
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           {!isSupervisor && (
             <Tooltip title="Delete">
               <IconButton size="small" color="error" onClick={() => handleDeleteClick(params.row as Employee)}>
@@ -415,6 +421,30 @@ const EmployeesPage: React.FC = () => {
 
   const rows = (employeesData as any)?.data || [];
 
+  const filteredRows = React.useMemo(() => {
+    if (!searchQuery.trim()) return rows;
+    const q = searchQuery.toLowerCase();
+    return rows.filter((emp: any) => {
+      const fullName = (emp.fullName || '').toLowerCase();
+      const email = (emp.email || '').toLowerCase();
+      const phone = (emp.phone || '').toLowerCase();
+      const employeeId = (emp.employeeId || '').toLowerCase();
+      const designation = (emp.designation || '').toLowerCase();
+      const department = (emp.department || '').toLowerCase();
+      const siteName = (sitesMap.get(emp.siteId) || '').toLowerCase();
+      const role = (emp.role || '').toLowerCase().replace('_', ' ');
+      
+      return fullName.includes(q) || 
+             email.includes(q) || 
+             phone.includes(q) || 
+             employeeId.includes(q) ||
+             designation.includes(q) ||
+             department.includes(q) ||
+             role.includes(q) ||
+             siteName.includes(q);
+    });
+  }, [rows, searchQuery, sitesMap]);
+ 
   const stats = React.useMemo(() => {
     const total = rows.length;
     const active = rows.filter((emp: any) => emp.status === 'ACTIVE').length;
@@ -434,14 +464,16 @@ const EmployeesPage: React.FC = () => {
             Manage your workforce and view their status.
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/employees/onboard')}
-          sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
-        >
-          Onboard Employee
-        </Button>
+        {!isSupervisor && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/employees/onboard')}
+            sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 700 }}
+          >
+            Onboard Employee
+          </Button>
+        )}
       </Box>
 
       {/* Summary Cards */}
@@ -493,15 +525,55 @@ const EmployeesPage: React.FC = () => {
         ))}
       </Grid>
 
+      {/* Search Bar */}
+      <Box sx={{ mb: 3 }}>
+        <TextField
+          placeholder="Search employees by name, email, phone, role, site, designation..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          variant="outlined"
+          size="small"
+          fullWidth
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon color="action" />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery && (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+              sx: {
+                borderRadius: 2.5,
+                backgroundColor: alpha(theme.palette.text.primary, 0.02),
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.text.primary, 0.04),
+                },
+                '&.Mui-focused': {
+                  backgroundColor: 'background.paper',
+                  boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`,
+                },
+                transition: 'all 0.2s',
+              }
+            }
+          }}
+        />
+      </Box>
+ 
       <DataTable
-        rows={rows}
+        rows={filteredRows}
         columns={columns}
         loading={isEmployeesLoading}
         getRowId={(row) => row.id}
       />
 
       {/* Delete Dialog */}
-      <Dialog open={!!employeeToDelete} onClose={() => !isDeleting && setEmployeeToDelete(null)}>
+      <Dialog open={!!employeeToDelete && !showSecondConfirm} onClose={() => !isDeleting && setEmployeeToDelete(null)}>
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -510,8 +582,24 @@ const EmployeesPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEmployeeToDelete(null)} color="inherit" disabled={isDeleting}>Cancel</Button>
+          <Button onClick={() => setShowSecondConfirm(true)} color="error" variant="contained" disabled={isDeleting}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Second Delete Confirmation Dialog */}
+      <Dialog open={!!employeeToDelete && showSecondConfirm} onClose={() => !isDeleting && (setEmployeeToDelete(null), setShowSecondConfirm(false))}>
+        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>Double Confirmation Required</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure to delete that employee? Please click <strong>Confirm Delete</strong> to proceed.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setEmployeeToDelete(null); setShowSecondConfirm(false); }} color="inherit" disabled={isDeleting}>Cancel</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained" disabled={isDeleting}>
-            {isDeleting ? <CircularProgress size={24} color="inherit" /> : 'Delete'}
+            {isDeleting ? <CircularProgress size={24} color="inherit" /> : 'Confirm Delete'}
           </Button>
         </DialogActions>
       </Dialog>
