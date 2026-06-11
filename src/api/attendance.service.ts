@@ -37,7 +37,8 @@ export const AttendanceService = {
       });
       return (res.data as any) || []; // Extract the raw array
     }
-    return apiClient.get<any>(`/attendance/site/${siteId}`);
+    const res = await apiClient.get<any>(`/attendance/site/${siteId}`);
+    return (res as any)?.data || [];
   },
 
   getReport: async (params: {

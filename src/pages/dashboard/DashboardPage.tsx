@@ -303,7 +303,7 @@ export default function DashboardPage() {
   const { data: sitePayrollPreviewResponse, isLoading: sitePayrollPreviewLoading } = useQuery({
     queryKey: ['site-payroll-preview', selectedSiteId],
     queryFn: () => apiClient.get(`/payroll/site-preview?siteId=${selectedSiteId}&month=${defaultMonth}&year=${defaultYear}`),
-    enabled: !isEmployee && !isClient && !!selectedSiteId,
+    enabled: !isEmployee && !isClient && user?.role !== 'SUPERVISOR' && !!selectedSiteId,
   });
 
   // Data processing - Employee

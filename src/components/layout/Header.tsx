@@ -115,8 +115,8 @@ export const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
             size={32}
             showText={true}
             textPosition="right"
-            textColor="#ffffff"
-            subTextColor="rgba(255, 255, 255, 0.75)"
+            textColor={mode === 'light' ? '#0c342b' : '#ffffff'}
+            subTextColor={mode === 'light' ? '#9a7d23' : 'rgba(255, 255, 255, 0.75)'}
             hoverEffect={true}
           />
         </Box>
