@@ -152,7 +152,7 @@ export default function EmployeeOnboardingPage() {
     }
   }, [user]);
 
-  const { control, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<BasicInfoSchema>({
+  const { control, handleSubmit, watch, formState: { errors }, reset, setValue, getValues } = useForm<BasicInfoSchema>({
     resolver: zodResolver(basicInfoSchema),
     defaultValues: {
       firstName: '',
@@ -183,49 +183,13 @@ export default function EmployeeOnboardingPage() {
   };
 
   const onBasicInfoSubmit = async (data: BasicInfoSchema) => {
-    setIsSubmitting(true);
     setApiError(null);
-    try {
-      const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
-      if (!selectedOrgId) {
-        setApiError('Organization selection is required.');
-        return;
-      }
-
-      const payload: any = {
-        fullName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
-        phone: data.phone.replace(/\s+/g, ''),
-        role: data.role,
-        status: 'ACTIVE',
-        enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
-        organizationId: selectedOrgId,
-      };
-      // Only include siteId if one was selected
-      if (data.siteId) payload.siteId = data.siteId;
-
-      const res = await EmployeeService.createEmployee(payload);
-      const newEmployeeId = (res as any).id || (res as any).data?.id;
-      if (newEmployeeId) {
-        setCreatedEmployeeId(newEmployeeId);
-        setActiveStep(1);
-      } else {
-        console.warn('Could not find ID in response:', res);
-        setActiveStep(1);
-      }
-    } catch (error: any) {
-      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
-      const status = error.status || error.response?.status;
-      if (errData?.code === 'DUPLICATE_RESOURCE') {
-        setApiError(errData.message || 'An employee with this email or phone already exists.');
-      } else if (status === 409) {
-        setApiError('An employee with these details already exists.');
-      } else {
-        setApiError(errData?.message || error.message || 'Failed to create employee.');
-      }
-    } finally {
-      setIsSubmitting(false);
+    const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
+    if (!selectedOrgId) {
+      setApiError('Organization selection is required.');
+      return;
     }
+    setActiveStep(1);
   };
 
   // Upload a single document file and register it
@@ -274,7 +238,69 @@ export default function EmployeeOnboardingPage() {
       setApiError(`Please upload required documents: ${missingRequired.map((s) => s.label).join(', ')}`);
       return;
     }
-    setActiveStep(steps.length);
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    try {
+      const data = getValues();
+      const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
+      if (!selectedOrgId) {
+        setApiError('Organization selection is required.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const payload: any = {
+        fullName: `${data.firstName} ${data.lastName}`,
+        email: data.email,
+        phone: data.phone.replace(/\s+/g, ''),
+        role: data.role,
+        status: 'ACTIVE',
+        enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
+        organizationId: selectedOrgId,
+      };
+      // Only include siteId if one was selected
+      if (data.siteId) payload.siteId = data.siteId;
+
+      let employeeId = createdEmployeeId;
+
+      if (!employeeId) {
+        // Create new employee
+        const res = await EmployeeService.createEmployee(payload);
+        const newEmployeeId = (res as any).id || (res as any).data?.id || (res as any).data?.data?.id;
+        if (!newEmployeeId) {
+          throw new Error('Failed to retrieve new employee ID.');
+        }
+        employeeId = newEmployeeId;
+        setCreatedEmployeeId(employeeId);
+      } else {
+        // Update existing employee (if we are retrying onboarding after doc upload failure)
+        await EmployeeService.updateEmployee(employeeId, payload);
+      }
+
+      // Upload and register all documents that are done
+      const uploadPromises = Object.entries(docStates)
+        .filter(([_, state]) => state.status === 'done' && state.fileUrl)
+        .map(([docType, state]) =>
+          EmployeeService.uploadDocument(employeeId!, docType, state.fileUrl)
+        );
+
+      await Promise.all(uploadPromises);
+      setActiveStep(steps.length);
+    } catch (error: any) {
+      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
+      const status = error.status || error.response?.status;
+      if (errData?.code === 'DUPLICATE_RESOURCE') {
+        setApiError(errData.message || 'An employee with this email or phone already exists.');
+      } else if (status === 409) {
+        setApiError('An employee with these details already exists.');
+      } else {
+        setApiError(errData?.message || error.message || 'Failed to complete onboarding.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isImageUrl = (url: string) =>
