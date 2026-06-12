@@ -3,6 +3,7 @@ export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
 
 export interface Employee {
   id: string;
+  userId?: string;
   employeeId?: string;
   fullName: string;
   email?: string;
