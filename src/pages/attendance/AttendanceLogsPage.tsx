@@ -122,6 +122,7 @@ export default function AttendanceLogsPage() {
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const hasManageAccess = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERVISOR';
 
   // State Management
   const [page, setPage] = useState(0);
@@ -184,20 +185,21 @@ export default function AttendanceLogsPage() {
     }
   }, [filterDatePreset]);
 
-  // Queries
+  // Queries — fetch ALL logs for the selected date range
+  // Backend PageRequestDto: page is 1-indexed, limit max = 100
   const { data, isLoading } = useQuery({
     queryKey: ['attendance-logs', dateRangeParams],
     queryFn: () => AttendanceService.getLogs({
-      page: 0,
-      size: 500,
+      page: 1,
+      limit: 100,
       start: dateRangeParams.start,
       end: dateRangeParams.end,
     }),
   });
 
   const { data: employeesData } = useQuery({
-    queryKey: ['employees'],
-    queryFn: () => EmployeeService.getEmployees(),
+    queryKey: ['employees', 'all-sites'],
+    queryFn: () => EmployeeService.getEmployees(true),
   });
 
   const { data: sitesData } = useQuery({
@@ -205,10 +207,32 @@ export default function AttendanceLogsPage() {
     queryFn: () => SiteService.getSites(),
   });
 
-  const rawLogs = useMemo(() => ((data as any)?.data || []) as any[], [data]);
-  const employees = useMemo(() => (employeesData as any)?.data || [], [employeesData]);
-  const sites = useMemo(() => sitesData?.data || [], [sitesData]);
+  // Backend returns ApiResponse<List> — interceptor unwraps res.data → { success, data: [...], meta }
+  // So 'data' here is { success, data: AttendanceLogDto[], meta }
+  const rawLogs = useMemo(() => {
+    const payload = data as any;
+    // Handle both: paginated { data: [...] } and direct array
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [data]) as any[];
+
+  const employees = useMemo(() => {
+    const payload = employeesData as any;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [employeesData]);
+
+  const sites = useMemo(() => {
+    const payload = sitesData as any;
+    if (Array.isArray(payload)) return payload;
+    if (Array.isArray(payload?.data)) return payload.data;
+    return [];
+  }, [sitesData]);
+
   const sitesMap = useMemo(() => Object.fromEntries(sites.map((s: any) => [s.id, s])), [sites]);
+
 
   // Sync manual coordinate default when site changes
   useEffect(() => {
@@ -220,6 +244,18 @@ export default function AttendanceLogsPage() {
       }
     }
   }, [manualSiteId, sitesMap, logToEdit, setValue]);
+
+  // Default site if only 1 site is available
+  useEffect(() => {
+    if (sites.length === 1 && !manualSiteId && !logToEdit) {
+      setValue('siteId', sites[0].id);
+    }
+  }, [sites, manualSiteId, logToEdit, setValue]);
+
+  const filteredFormEmployees = useMemo(() => {
+    if (!manualSiteId) return employees;
+    return employees.filter((emp: any) => emp.siteId === manualSiteId);
+  }, [employees, manualSiteId]);
 
   // Date preset ranges filter calculations
   const filteredLogs = useMemo(() => {
@@ -338,13 +374,16 @@ export default function AttendanceLogsPage() {
         siteId: filterSiteId || undefined,
         start: filterDatePreset === 'TODAY' ? new Date(new Date().setHours(0,0,0,0)).toISOString() : undefined,
       };
-      const res: any = await AttendanceService.exportAttendance('ATTENDANCE', filters);
-      const downloadUrl = res?.data?.downloadUrl || (res as any)?.downloadUrl;
-      if (downloadUrl) {
-        window.open(downloadUrl, '_blank');
-      } else {
-        alert('Export successfully processed, check admin exports panel.');
-      }
+      const res: any = await AttendanceService.exportAttendance('attendance', filters);
+      const blob = new Blob([res], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `attendance_export_${format(new Date(), 'yyyyMMdd')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error('Export failed', err);
       alert('Failed to export data: ' + (err.message || 'Server error'));
@@ -407,6 +446,15 @@ export default function AttendanceLogsPage() {
 
       if (logToEdit) {
         await AttendanceService.updateManualLog(logToEdit.id, payload);
+      } else if (formData.employeeId === 'ALL') {
+        const bulkPayload = {
+          siteId: formData.siteId,
+          punchType: formData.punchType,
+          punchTime: new Date(formData.punchTime).toISOString(),
+          latitude: formData.latitude,
+          longitude: formData.longitude,
+        };
+        await AttendanceService.createBulkManualLog(bulkPayload);
       } else {
         await AttendanceService.createManualLog(payload);
       }
@@ -463,7 +511,7 @@ export default function AttendanceLogsPage() {
           >
             Export Logs
           </Button>
-          {isSuperAdmin && (
+          {hasManageAccess && (
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -732,7 +780,7 @@ export default function AttendanceLogsPage() {
                   <TableCell sx={{ fontWeight: 750 }}>Type</TableCell>
                   <TableCell sx={{ fontWeight: 750 }}>Geofence</TableCell>
                   <TableCell sx={{ fontWeight: 750 }}>Biometrics Match</TableCell>
-                  {isSuperAdmin && <TableCell sx={{ fontWeight: 750 }} align="center">Actions</TableCell>}
+                  {hasManageAccess && <TableCell sx={{ fontWeight: 750 }} align="center">Actions</TableCell>}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -744,7 +792,7 @@ export default function AttendanceLogsPage() {
                       log={log}
                       site={site}
                       theme={theme}
-                      isSuperAdmin={isSuperAdmin}
+                      isSuperAdmin={hasManageAccess} // reuse prop for simplicity
                       onEdit={handleEditClick}
                       onDelete={(l) => setLogToDelete(l)}
                     />
@@ -787,30 +835,6 @@ export default function AttendanceLogsPage() {
               <Grid size={{ xs: 12, md: 6 }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                   <Controller
-                    name="employeeId"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        select
-                        label="Select Employee"
-                        variant="outlined"
-                        error={!!errors.employeeId}
-                        helperText={errors.employeeId?.message}
-                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                      >
-                        <MenuItem value=""><em>Select Employee</em></MenuItem>
-                        {employees.map((emp: any) => (
-                          <MenuItem key={emp.id} value={emp.id}>
-                            {emp.fullName} ({emp.role})
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                  />
-
-                  <Controller
                     name="siteId"
                     control={control}
                     render={({ field }) => (
@@ -828,6 +852,36 @@ export default function AttendanceLogsPage() {
                         {sites.map((site: any) => (
                           <MenuItem key={site.id} value={site.id}>
                             {site.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+
+                  <Controller
+                    name="employeeId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        select
+                        label="Select Employee"
+                        variant="outlined"
+                        error={!!errors.employeeId}
+                        helperText={errors.employeeId?.message}
+                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        disabled={!manualSiteId && sites.length > 1}
+                      >
+                        <MenuItem value=""><em>Select Employee</em></MenuItem>
+                        {!logToEdit && manualSiteId && filteredFormEmployees.length > 0 && (
+                          <MenuItem value="ALL">
+                            <strong>All Employees ({filteredFormEmployees.length})</strong>
+                          </MenuItem>
+                        )}
+                        {filteredFormEmployees.map((emp: any) => (
+                          <MenuItem key={emp.id} value={emp.id}>
+                            {emp.fullName} ({emp.role})
                           </MenuItem>
                         ))}
                       </TextField>
@@ -891,13 +945,15 @@ export default function AttendanceLogsPage() {
                         render={({ field }) => (
                           <TextField
                             {...field}
+                            value={field.value ?? ''}
                             fullWidth
                             type="number"
                             label="Latitude Override"
                             variant="outlined"
                             slotProps={{
                               htmlInput: { step: 'any' },
-                              input: { sx: { borderRadius: 2 } }
+                              input: { sx: { borderRadius: 2 } },
+                              inputLabel: { shrink: true }
                             }}
                           />
                         )}
@@ -910,13 +966,15 @@ export default function AttendanceLogsPage() {
                         render={({ field }) => (
                           <TextField
                             {...field}
+                            value={field.value ?? ''}
                             fullWidth
                             type="number"
                             label="Longitude Override"
                             variant="outlined"
                             slotProps={{
                               htmlInput: { step: 'any' },
-                              input: { sx: { borderRadius: 2 } }
+                              input: { sx: { borderRadius: 2 } },
+                              inputLabel: { shrink: true }
                             }}
                           />
                         )}

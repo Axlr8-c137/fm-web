@@ -7,6 +7,7 @@ export interface Site {
   radius: number;
   status: 'ACTIVE' | 'INACTIVE';
   isPayrollVisible?: boolean;
+  isFixedPayroll?: boolean;
   supervisorName?: string;
   employeeCount?: number;
   clientName?: string;

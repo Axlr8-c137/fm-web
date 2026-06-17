@@ -71,6 +71,7 @@ import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router-dom';
+import ClientDashboardPage from './ClientDashboardPage';
 
 import { useAuthStore } from '../../stores/auth.store';
 import apiClient from '../../api/client';
@@ -95,6 +96,82 @@ const INR = (v: number | string | undefined | null) => {
   const num = typeof v === 'string' ? parseFloat(v) : v;
   if (isNaN(num)) return '—';
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+};
+
+const formatTime = (isoString: string | null | undefined) => {
+  if (!isoString) return '—';
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    });
+  } catch (e) {
+    return '—';
+  }
+};
+
+const consolidateAttendance = (logs: any[]) => {
+  if (!logs || logs.length === 0) return [];
+  
+  const map = new Map<string, {
+    id: string;
+    employeeName: string;
+    checkInTime: Date | null;
+    checkOutTime: Date | null;
+    checkIn: string;
+    checkOut: string;
+    status: 'PRESENT' | 'ABSENT' | 'LATE';
+    workHours: number;
+  }>();
+
+  logs.forEach((log: any) => {
+    const empId = log.employeeId;
+    if (!empId) return;
+
+    if (!map.has(empId)) {
+      map.set(empId, {
+        id: empId,
+        employeeName: log.employeeName || 'Unknown Employee',
+        checkInTime: null,
+        checkOutTime: null,
+        checkIn: '—',
+        checkOut: '—',
+        status: 'PRESENT',
+        workHours: 0,
+      });
+    }
+
+    const record = map.get(empId)!;
+    const punchTimeDate = new Date(log.punchTime);
+
+    if (log.punchType === 'IN') {
+      if (!record.checkInTime || punchTimeDate < record.checkInTime) {
+        record.checkInTime = punchTimeDate;
+        record.checkIn = formatTime(log.punchTime);
+      }
+    } else if (log.punchType === 'OUT') {
+      if (!record.checkOutTime || punchTimeDate > record.checkOutTime) {
+        record.checkOutTime = punchTimeDate;
+        record.checkOut = formatTime(log.punchTime);
+      }
+    }
+  });
+
+  // Calculate work hours for each employee record
+  map.forEach((record) => {
+    if (record.checkInTime && record.checkOutTime) {
+      const diffMs = record.checkOutTime.getTime() - record.checkInTime.getTime();
+      if (diffMs > 0) {
+        const diffHrs = diffMs / (1000 * 60 * 60);
+        record.workHours = Math.round(diffHrs * 10) / 10; // Round to 1 decimal place
+      }
+    }
+  });
+
+  return Array.from(map.values());
 };
 
 const createMarkerIcon = (color: string) => {
@@ -170,6 +247,7 @@ export default function DashboardPage() {
   const isEmployee = user?.role === 'EMPLOYEE';
 
   const queryClient = useQueryClient();
+  const isClient = user?.role === 'CLIENT';
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
@@ -200,32 +278,32 @@ export default function DashboardPage() {
   const { data: statsResponse, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
     queryFn: () => AdminService.getDashboardStats(),
-    enabled: !isEmployee,
+    enabled: !isEmployee && !isClient,
   });
 
   const { data: sitesResponse, isLoading: sitesLoading } = useQuery({
     queryKey: ['admin-sites'],
     queryFn: () => SiteService.getSites(1, 100),
-    enabled: !isEmployee,
+    enabled: !isEmployee && !isClient,
   });
 
   const { data: employeesResponse, isLoading: employeesLoading } = useQuery({
     queryKey: ['admin-employees'],
     queryFn: () => EmployeeService.getEmployees(),
-    enabled: !isEmployee,
+    enabled: !isEmployee && !isClient,
   });
 
   // Site-specific telemetry query
   const { data: siteAttendanceResponse, isLoading: siteAttendanceLoading } = useQuery({
     queryKey: ['site-attendance', selectedSiteId],
     queryFn: () => AttendanceService.getTodayAttendance(selectedSiteId || undefined),
-    enabled: !isEmployee && !!selectedSiteId,
+    enabled: !isEmployee && !isClient && !!selectedSiteId,
   });
 
   const { data: sitePayrollPreviewResponse, isLoading: sitePayrollPreviewLoading } = useQuery({
     queryKey: ['site-payroll-preview', selectedSiteId],
     queryFn: () => apiClient.get(`/payroll/site-preview?siteId=${selectedSiteId}&month=${defaultMonth}&year=${defaultYear}`),
-    enabled: !isEmployee && !!selectedSiteId,
+    enabled: !isEmployee && !isClient && user?.role !== 'SUPERVISOR' && !!selectedSiteId,
   });
 
   // Data processing - Employee
@@ -249,7 +327,7 @@ export default function DashboardPage() {
 
   const sites: any[] = React.useMemo(() => {
     const rawSites = (sitesResponse as any)?.data || [];
-    return rawSites.map((site: any) => {
+    const mappedSites = rawSites.map((site: any) => {
       const siteEmployees = employees.filter((emp: any) => emp.siteId === site.id);
       const supervisor = siteEmployees.find((emp: any) => emp.role === 'SUPERVISOR');
       return {
@@ -259,7 +337,15 @@ export default function DashboardPage() {
         supervisorId: supervisor ? supervisor.id : '',
       };
     });
-  }, [sitesResponse, employees]);
+
+    if (user?.role === 'SUPERVISOR' && user?.id) {
+      return mappedSites.filter((site: any) => 
+        employees.some((emp: any) => emp.userId === user.id && emp.siteId === site.id)
+      );
+    }
+
+    return mappedSites;
+  }, [sitesResponse, employees, user]);
 
   const filteredSites = sites.filter((site: any) =>
     site.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -268,7 +354,8 @@ export default function DashboardPage() {
   );
 
   const selectedSite = sites.find((s: any) => s.id === selectedSiteId);
-  const siteAttendance: any[] = (siteAttendanceResponse as any)?.data || [];
+  const rawSiteAttendance: any[] = Array.isArray(siteAttendanceResponse) ? siteAttendanceResponse : [];
+  const siteAttendance = React.useMemo(() => consolidateAttendance(rawSiteAttendance), [rawSiteAttendance]);
   const sitePayrollPreview: any[] = (sitePayrollPreviewResponse as any)?.data || [];
 
   // Generate pie chart data
@@ -404,7 +491,16 @@ export default function DashboardPage() {
 
   // Mutate/Handler: Create & Enroll — handled by the dedicated dialog component
 
-  // EMPLOYEE VIEW
+  // --- Client Dashboard ---
+  if (isClient) {
+    return <ClientDashboardPage />;
+  }
+
+  // --- Employee Dashboard ---
+  if (isClient) {
+    return <ClientDashboardPage />;
+  }
+
   if (isEmployee) {
     return (
       <Box sx={{ p: { xs: 2, md: 4 }, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -872,24 +968,26 @@ export default function DashboardPage() {
 
           {/* Quick Action Buttons on Hero */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 3 }}>
-            <Button
-              variant="outlined"
-              sx={{
-                borderColor: 'rgba(12, 52, 43, 0.35)',
-                color: '#0c342b',
-                fontWeight: 700,
-                '&:hover': {
-                  borderColor: '#0c342b',
-                  bgcolor: 'rgba(12, 52, 43, 0.05)'
-                },
-                borderRadius: 2,
-                px: 3,
-                textTransform: 'none',
-              }}
-              onClick={() => navigate('/payroll')}
-            >
-              Execute Payroll
-            </Button>
+            {user?.role !== 'SUPERVISOR' && (
+              <Button
+                variant="outlined"
+                sx={{
+                  borderColor: 'rgba(12, 52, 43, 0.35)',
+                  color: '#0c342b',
+                  fontWeight: 700,
+                  '&:hover': {
+                    borderColor: '#0c342b',
+                    bgcolor: 'rgba(12, 52, 43, 0.05)'
+                  },
+                  borderRadius: 2,
+                  px: 3,
+                  textTransform: 'none',
+                }}
+                onClick={() => navigate('/payroll')}
+              >
+                Execute Payroll
+              </Button>
+            )}
             <Button
               variant="outlined"
               sx={{
@@ -908,24 +1006,26 @@ export default function DashboardPage() {
             >
               Onboard Employee
             </Button>
-            <Button
-              variant="outlined"
-              sx={{
-                borderColor: 'rgba(12, 52, 43, 0.35)',
-                color: '#0c342b',
-                fontWeight: 700,
-                '&:hover': {
-                  borderColor: '#0c342b',
-                  bgcolor: 'rgba(12, 52, 43, 0.05)'
-                },
-                borderRadius: 2,
-                px: 3,
-                textTransform: 'none',
-              }}
-              onClick={() => navigate('/sites')}
-            >
-              Register Site
-            </Button>
+            {user?.role !== 'SUPERVISOR' && (
+              <Button
+                variant="outlined"
+                sx={{
+                  borderColor: 'rgba(12, 52, 43, 0.35)',
+                  color: '#0c342b',
+                  fontWeight: 700,
+                  '&:hover': {
+                    borderColor: '#0c342b',
+                    bgcolor: 'rgba(12, 52, 43, 0.05)'
+                  },
+                  borderRadius: 2,
+                  px: 3,
+                  textTransform: 'none',
+                }}
+                onClick={() => navigate('/sites')}
+              >
+                Register Site
+              </Button>
+            )}
           </Box>
         </Box>
 
@@ -1003,7 +1103,12 @@ export default function DashboardPage() {
               color: 'hsl(262, 83%, 58%)',
               bgColor: 'rgba(156, 39, 176, 0.04)',
             },
-          ].map((card, idx) => (
+          ].filter((card) => {
+            if (user?.role === 'SUPERVISOR') {
+              return card.title !== 'Site Coverage' && card.title !== 'Disbursement Runs';
+            }
+            return true;
+          }).map((card, idx) => (
             <Grid size={{ xs: 12, sm: 6, md: 3 }} key={idx}>
               <Paper
                 variant="outlined"
@@ -1093,6 +1198,9 @@ export default function DashboardPage() {
                 >
                   <Tab label="Directory List" />
                   <Tab label="Coverage Map" />
+                  {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                    <Tab label="Pending Approvals" />
+                  )}
                 </Tabs>
                 {/* Site Search */}
                 <TextField
@@ -1185,18 +1293,20 @@ export default function DashboardPage() {
                                         Radius: {site.radius}m
                                       </Typography>
                                     </Box>
-                                    <Button
-                                      size="small"
-                                      variant="text"
-                                      endIcon={<ArrowIcon fontSize="small" />}
-                                      sx={{ p: 0, minWidth: 0, textTransform: 'none', fontWeight: 700 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigate(`/sites/${site.id}`);
-                                      }}
-                                    >
-                                      Manage
-                                    </Button>
+                                    {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                                      <Button
+                                        size="small"
+                                        variant="text"
+                                        endIcon={<ArrowIcon fontSize="small" />}
+                                        sx={{ p: 0, minWidth: 0, textTransform: 'none', fontWeight: 700 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(`/sites/${site.id}`);
+                                        }}
+                                      >
+                                        Manage
+                                      </Button>
+                                    )}
                                   </Box>
                                 </CardContent>
                               </Card>
@@ -1261,6 +1371,80 @@ export default function DashboardPage() {
                     </MapContainerAny>
                   </Box>
                 )}
+
+                {/* Pending approvals tab */}
+                {sitesWorkspaceTab === 2 && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                  <Box sx={{ height: '100%', overflowY: 'auto', p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {employeesLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>
+                    ) : employees.filter((emp: any) => emp.approvalStatus === 'PENDING_APPROVAL').length === 0 ? (
+                      <Box sx={{ p: 4, textAlign: 'center' }}>
+                        <Typography color="text.secondary">No pending approvals.</Typography>
+                      </Box>
+                    ) : (
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell sx={{ fontWeight: 700 }}>Employee Name</TableCell>
+                              <TableCell sx={{ fontWeight: 700 }}>Phone</TableCell>
+                              <TableCell sx={{ fontWeight: 700 }}>Site</TableCell>
+                              <TableCell align="center" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {employees.filter((emp: any) => emp.approvalStatus === 'PENDING_APPROVAL').map((emp: any) => (
+                              <TableRow key={emp.id} hover>
+                                <TableCell>{emp.fullName}</TableCell>
+                                <TableCell>{emp.phone}</TableCell>
+                                <TableCell>
+                                  {sites.find((s: any) => s.id === emp.siteId)?.name || 'N/A'}
+                                </TableCell>
+                                <TableCell align="center">
+                                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      color="success"
+                                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                                      onClick={async () => {
+                                        try {
+                                          await EmployeeService.approveEmployee(emp.id, true);
+                                          queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+                                        } catch (e: any) {
+                                          alert('Failed to approve employee: ' + (e?.message || e));
+                                        }
+                                      }}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="error"
+                                      sx={{ textTransform: 'none', fontWeight: 700 }}
+                                      onClick={async () => {
+                                        if (!confirm(`Are you sure you want to reject ${emp.fullName}?`)) return;
+                                        try {
+                                          await EmployeeService.approveEmployee(emp.id, false);
+                                          queryClient.invalidateQueries({ queryKey: ['admin-employees'] });
+                                        } catch (e: any) {
+                                          alert('Failed to reject employee: ' + (e?.message || e));
+                                        }
+                                      }}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </Box>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </Box>
+                )}
               </Box>
             </Paper>
           </Grid>
@@ -1313,10 +1497,11 @@ export default function DashboardPage() {
                     {/* Site micro parameters */}
                     <Grid container spacing={2}>
                       <Grid size={{ xs: 6 }}>
-                        <Tooltip title={selectedSite?.supervisorName ? "Click to change supervisor" : "Click to assign supervisor"}>
+                        <Tooltip title={(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? (selectedSite?.supervisorName ? "Click to change supervisor" : "Click to assign supervisor") : ""}>
                           <Paper
                             variant="outlined"
                             onClick={() => {
+                              if (user?.role !== 'ADMIN' && user?.role !== 'SUPER_ADMIN') return;
                               // Pre-populate supervisor dropdown
                               const currentSup = employees.find((emp: any) => emp.siteId === selectedSiteId && emp.role === 'SUPERVISOR');
                               setSelectedSupId(currentSup?.id || '');
@@ -1329,12 +1514,12 @@ export default function DashboardPage() {
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               gap: 1,
-                              cursor: 'pointer',
+                              cursor: (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? 'pointer' : 'default',
                               transition: 'all 0.2s',
-                              '&:hover': {
+                              '&:hover': (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? {
                                 borderColor: 'primary.main',
                                 bgcolor: alpha(theme.palette.primary.main, 0.02),
-                              }
+                              } : {}
                             }}
                           >
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1342,11 +1527,11 @@ export default function DashboardPage() {
                               <Box>
                                 <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem' }}>SUPERVISOR</Typography>
                                 <Typography variant="body2" fontWeight={700} sx={{ fontSize: '0.78rem' }}>
-                                  {selectedSite?.supervisorName || 'Assign Supervisor'}
+                                  {selectedSite?.supervisorName || ((user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') ? 'Assign Supervisor' : 'No Supervisor')}
                                 </Typography>
                               </Box>
                             </Box>
-                            {!selectedSite?.supervisorName && (
+                            {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && !selectedSite?.supervisorName && (
                               <AddIcon fontSize="small" sx={{ color: 'action.active', opacity: 0.8 }} />
                             )}
                           </Paper>
@@ -1382,7 +1567,7 @@ export default function DashboardPage() {
                     >
                       <Tab label="Today's Attendance" />
                       <Tab label="Workforce Registry" />
-                      <Tab label="Payroll Preview (Current Month)" />
+                      {user?.role !== 'SUPERVISOR' && <Tab label="Payroll Preview (Current Month)" />}
                     </Tabs>
                   </Box>
 
@@ -1484,7 +1669,7 @@ export default function DashboardPage() {
                               <Button
                                 size="small"
                                 variant="contained"
-                                onClick={() => setIsCreateEnrollOpen(true)}
+                                onClick={() => navigate('/employees/onboard')}
                                 sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, fontSize: '0.68rem', py: 0.25, px: 1 }}
                               >
                                 Create & Enroll
@@ -1534,6 +1719,14 @@ export default function DashboardPage() {
                                             variant="outlined"
                                             sx={{ fontSize: '0.62rem', height: 16, fontWeight: 700 }}
                                           />
+                                          {emp.approvalStatus === 'PENDING_APPROVAL' && (
+                                            <Chip
+                                              label="PENDING"
+                                              size="small"
+                                              color="warning"
+                                              sx={{ ml: 1, fontSize: '0.62rem', height: 16, fontWeight: 700 }}
+                                            />
+                                          )}
                                         </TableCell>
                                         <TableCell sx={{ fontSize: '0.72rem', fontFamily: 'monospace' }}>
                                           {emp.phone}
@@ -1606,26 +1799,28 @@ export default function DashboardPage() {
                   </Box>
 
                   {/* Drawer Footer controls */}
-                  <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 2, bgcolor: alpha(theme.palette.action.hover, 0.03) }}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      size="small"
-                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-                      onClick={() => navigate(`/sites/${selectedSiteId}`)}
-                    >
-                      Site Details
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      size="small"
-                      sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
-                      onClick={() => navigate('/payroll')}
-                    >
-                      Process Payroll
-                    </Button>
-                  </Box>
+                  {user?.role !== 'SUPERVISOR' && (
+                    <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', display: 'flex', gap: 2, bgcolor: alpha(theme.palette.action.hover, 0.03) }}>
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        size="small"
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        onClick={() => navigate(`/sites/${selectedSiteId}`)}
+                      >
+                        Site Details
+                      </Button>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        size="small"
+                        sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 2 }}
+                        onClick={() => navigate('/payroll')}
+                      >
+                        Process Payroll
+                      </Button>
+                    </Box>
+                  )}
                 </React.Fragment>
               )}
             </Paper>

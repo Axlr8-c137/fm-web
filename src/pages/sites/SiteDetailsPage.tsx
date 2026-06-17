@@ -297,7 +297,7 @@ export default function SiteDetailsPage() {
 
   const rawSite = siteData?.data;
   const employees = (employeesData as any)?.data || [];
-  const siteAttendance = (siteAttendanceData as any)?.data || [];
+  const siteAttendance = Array.isArray(siteAttendanceData) ? siteAttendanceData : (siteAttendanceData as any)?.data || [];
   const siteUpdates = (siteUpdatesResponse as any)?.data || [];
 
   if (!rawSite) {

@@ -11,6 +11,7 @@ const mapSiteResponse = (raw: any): Site => ({
   radius: raw.geofenceRadius || raw.radius || 0,
   status: (raw.isActive !== undefined ? raw.isActive : raw.active) ? 'ACTIVE' : 'INACTIVE',
   isPayrollVisible: raw.isPayrollVisible !== undefined ? raw.isPayrollVisible : (raw.payrollVisible || false),
+  isFixedPayroll: raw.isFixedPayroll !== undefined ? raw.isFixedPayroll : (raw.fixedPayroll || false),
   supervisorName: raw.supervisorName,
   employeeCount: raw.employeeCount,
   clientName: raw.clientName,
@@ -59,6 +60,7 @@ export const SiteService = {
       longitude: site.longitude,
       geofenceRadius: site.radius,
       isPayrollVisible: site.isPayrollVisible,
+      isFixedPayroll: site.isFixedPayroll,
       organizationId: site.organizationId,
     };
     const response: any = await apiClient.post<ApiResponse<any>>('/sites', payload);
@@ -80,6 +82,7 @@ export const SiteService = {
       geofenceRadius: site.radius,
       isActive: site.status !== undefined ? (site.status === 'ACTIVE') : site.isActive,
       isPayrollVisible: site.isPayrollVisible,
+      isFixedPayroll: site.isFixedPayroll,
     };
     const response: any = await apiClient.put<ApiResponse<any>>(`/sites/${id}`, payload);
     if (response && response.success && response.data) {

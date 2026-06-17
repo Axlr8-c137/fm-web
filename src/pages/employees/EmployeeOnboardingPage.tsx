@@ -45,7 +45,7 @@ const basicInfoSchema = z.object({
   firstName: z.string().min(1, 'First name is required'),
   lastName: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().min(10, 'Phone is required'),
+  phone: z.string().regex(/^\+91 \d{10}$/, 'Phone must be +91 followed by 10 digits'),
   role: z.string(),
   joiningDate: z.date(),
   organizationId: z.string().optional(),
@@ -91,6 +91,7 @@ export default function EmployeeOnboardingPage() {
   const navigate = useNavigate();
   const theme = useTheme();
   const user = useAuthStore((state) => state.user);
+  const isSupervisor = user?.role === 'SUPERVISOR';
 
   const [activeStep, setActiveStep] = useState(0);
   const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null);
@@ -151,13 +152,13 @@ export default function EmployeeOnboardingPage() {
     }
   }, [user]);
 
-  const { control, handleSubmit, watch, formState: { errors }, reset, setValue } = useForm<BasicInfoSchema>({
+  const { control, handleSubmit, watch, formState: { errors }, reset, setValue, getValues } = useForm<BasicInfoSchema>({
     resolver: zodResolver(basicInfoSchema),
     defaultValues: {
       firstName: '',
       lastName: '',
       email: '',
-      phone: '',
+      phone: '+91 ',
       role: 'EMPLOYEE',
       joiningDate: new Date(),
       organizationId: '',
@@ -182,49 +183,13 @@ export default function EmployeeOnboardingPage() {
   };
 
   const onBasicInfoSubmit = async (data: BasicInfoSchema) => {
-    setIsSubmitting(true);
     setApiError(null);
-    try {
-      const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
-      if (!selectedOrgId) {
-        setApiError('Organization selection is required.');
-        return;
-      }
-
-      const payload: any = {
-        fullName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
-        phone: data.phone,
-        role: data.role,
-        status: 'ACTIVE',
-        joiningDate: data.joiningDate.toISOString(),
-        organizationId: selectedOrgId,
-      };
-      // Only include siteId if one was selected
-      if (data.siteId) payload.siteId = data.siteId;
-
-      const res = await EmployeeService.createEmployee(payload);
-      const newEmployeeId = (res as any).id || (res as any).data?.id;
-      if (newEmployeeId) {
-        setCreatedEmployeeId(newEmployeeId);
-        setActiveStep(1);
-      } else {
-        console.warn('Could not find ID in response:', res);
-        setActiveStep(1);
-      }
-    } catch (error: any) {
-      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
-      const status = error.status || error.response?.status;
-      if (errData?.code === 'DUPLICATE_RESOURCE') {
-        setApiError(errData.message || 'An employee with this email or phone already exists.');
-      } else if (status === 409) {
-        setApiError('An employee with these details already exists.');
-      } else {
-        setApiError(errData?.message || error.message || 'Failed to create employee.');
-      }
-    } finally {
-      setIsSubmitting(false);
+    const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
+    if (!selectedOrgId) {
+      setApiError('Organization selection is required.');
+      return;
     }
+    setActiveStep(1);
   };
 
   // Upload a single document file and register it
@@ -273,7 +238,69 @@ export default function EmployeeOnboardingPage() {
       setApiError(`Please upload required documents: ${missingRequired.map((s) => s.label).join(', ')}`);
       return;
     }
-    setActiveStep(steps.length);
+
+    setIsSubmitting(true);
+    setApiError(null);
+
+    try {
+      const data = getValues();
+      const selectedOrgId = user?.role === 'SUPER_ADMIN' ? data.organizationId : user?.organizationId;
+      if (!selectedOrgId) {
+        setApiError('Organization selection is required.');
+        setIsSubmitting(false);
+        return;
+      }
+
+      const payload: any = {
+        fullName: `${data.firstName} ${data.lastName}`,
+        email: data.email,
+        phone: data.phone.replace(/\s+/g, ''),
+        role: data.role,
+        status: 'ACTIVE',
+        enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
+        organizationId: selectedOrgId,
+      };
+      // Only include siteId if one was selected
+      if (data.siteId) payload.siteId = data.siteId;
+
+      let employeeId = createdEmployeeId;
+
+      if (!employeeId) {
+        // Create new employee
+        const res = await EmployeeService.createEmployee(payload);
+        const newEmployeeId = (res as any).id || (res as any).data?.id || (res as any).data?.data?.id;
+        if (!newEmployeeId) {
+          throw new Error('Failed to retrieve new employee ID.');
+        }
+        employeeId = newEmployeeId;
+        setCreatedEmployeeId(employeeId);
+      } else {
+        // Update existing employee (if we are retrying onboarding after doc upload failure)
+        await EmployeeService.updateEmployee(employeeId, payload);
+      }
+
+      // Upload and register all documents that are done
+      const uploadPromises = Object.entries(docStates)
+        .filter(([_, state]) => state.status === 'done' && state.fileUrl)
+        .map(([docType, state]) =>
+          EmployeeService.uploadDocument(employeeId!, docType, state.fileUrl)
+        );
+
+      await Promise.all(uploadPromises);
+      setActiveStep(steps.length);
+    } catch (error: any) {
+      const errData = (error.code && error.message) ? error : (error.response?.data?.error || error.response?.data);
+      const status = error.status || error.response?.status;
+      if (errData?.code === 'DUPLICATE_RESOURCE') {
+        setApiError(errData.message || 'An employee with this email or phone already exists.');
+      } else if (status === 409) {
+        setApiError('An employee with these details already exists.');
+      } else {
+        setApiError(errData?.message || error.message || 'Failed to complete onboarding.');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isImageUrl = (url: string) =>
@@ -359,6 +386,21 @@ export default function EmployeeOnboardingPage() {
                       fullWidth label="Phone" placeholder="+91 98765 43210" variant="outlined"
                       error={!!errors.phone} helperText={errors.phone?.message}
                       slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                      onChange={(e) => {
+                        let val = e.target.value;
+                        if (!val.startsWith('+91 ')) {
+                          if (val.startsWith('+91')) {
+                            val = '+91 ' + val.substring(3).trim();
+                          } else if (val.startsWith('+')) {
+                            val = '+91 ' + val.substring(1).replace(/\D/g, '');
+                          } else {
+                            val = '+91 ' + val.replace(/\D/g, '');
+                          }
+                        }
+                        let digits = val.substring(4).replace(/\D/g, '');
+                        if (digits.length > 10) digits = digits.substring(0, 10);
+                        field.onChange('+91 ' + digits);
+                      }}
                     />
                   )}
                 />
@@ -372,6 +414,7 @@ export default function EmployeeOnboardingPage() {
                       {...field}
                       fullWidth select label="Role" variant="outlined"
                       error={!!errors.role} helperText={errors.role?.message}
+                      disabled={isSupervisor}
                       slotProps={{ input: { sx: { borderRadius: 2 } } }}
                     >
                       <MenuItem value="EMPLOYEE">Employee</MenuItem>
@@ -426,44 +469,46 @@ export default function EmployeeOnboardingPage() {
                 </Grid>
               )}
 
-              {/* Site assignment — shown for all roles once sites are available */}
-              <Grid size={{ xs: 12 }}>
-                <Controller
-                  name="siteId"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth select label="Assign Site (Optional)" variant="outlined"
-                      disabled={sitesLoading || sites.length === 0}
-                      helperText={
-                        sitesLoading
-                          ? 'Loading sites…'
-                          : sites.length === 0
-                            ? user?.role === 'SUPER_ADMIN'
-                              ? 'Select an organization first to see its sites'
-                              : 'No active sites found for your organization'
-                            : 'Select the site this employee will be assigned to'
-                      }
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    >
-                      <MenuItem value=""><em>No Site Assigned</em></MenuItem>
-                      {sites.map((site: any) => (
-                        <MenuItem key={site.id} value={site.id}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 600 }}>{site.name}</span>
-                            {site.address && (
-                              <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                                {site.address}
-                              </span>
-                            )}
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  )}
-                />
-              </Grid>
+              {/* Site assignment — shown for non-supervisor roles once sites are available */}
+              {!isSupervisor && (
+                <Grid size={{ xs: 12 }}>
+                  <Controller
+                    name="siteId"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth select label="Assign Site (Optional)" variant="outlined"
+                        disabled={sitesLoading || sites.length === 0}
+                        helperText={
+                          sitesLoading
+                            ? 'Loading sites…'
+                            : sites.length === 0
+                              ? user?.role === 'SUPER_ADMIN'
+                                ? 'Select an organization first to see its sites'
+                                : 'No active sites found for your organization'
+                              : 'Select the site this employee will be assigned to'
+                        }
+                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                      >
+                        <MenuItem value=""><em>No Site Assigned</em></MenuItem>
+                        {sites.map((site: any) => (
+                          <MenuItem key={site.id} value={site.id}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontWeight: 600 }}>{site.name}</span>
+                              {site.address && (
+                                <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                  {site.address}
+                                </span>
+                              )}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                </Grid>
+              )}
             </Grid>
           </Box>
         );

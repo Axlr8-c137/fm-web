@@ -110,4 +110,37 @@ export const AdminService = {
   getAuditLogs: async (params: { userId?: string; action?: string; page?: number; limit?: number }) => {
     return apiClient.get<ApiResponse<any>>('/admin/audit-logs', { params });
   },
+
+  /**
+   * List system users with pagination. Scoped to organization if orgId is provided.
+   */
+  listUsers: async (orgId?: string, page = 1, limit = 20) => {
+    const params: any = { page, limit };
+    if (orgId && orgId !== 'GLOBAL') {
+      params.orgId = orgId;
+    }
+    return apiClient.get<ApiResponse<any>>('/admin/users', { params });
+  },
+
+  /**
+   * Create a new user with role assignment.
+   */
+  createUser: async (user: { phone?: string; email?: string; password?: string; role: string; organizationId?: string }) => {
+    return apiClient.post<ApiResponse<any>>('/admin/users', user);
+  },
+
+  /**
+   * Update existing user details, roles, and status.
+   */
+  updateUser: async (id: string, user: { phone?: string; email?: string; role?: string; isActive?: boolean }) => {
+    return apiClient.put<ApiResponse<any>>(`/admin/users/${id}`, user);
+  },
+
+  /**
+   * Soft-delete/deactivate a user.
+   */
+  deactivateUser: async (id: string) => {
+    return apiClient.delete<ApiResponse<void>>(`/admin/users/${id}`);
+  },
 };
+

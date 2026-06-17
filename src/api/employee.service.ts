@@ -16,8 +16,9 @@ export const EmployeeService = {
   /**
    * Get all employees with optional filtering
    */
-  getEmployees: async () => {
-    return apiClient.get<ApiResponse<Employee[]>>('/employees');
+  getEmployees: async (includeAllSites: boolean = false) => {
+    const params = includeAllSites ? '?includeAllSites=true' : '';
+    return apiClient.get<ApiResponse<Employee[]>>(`/employees${params}`);
   },
 
   /**
@@ -46,6 +47,13 @@ export const EmployeeService = {
    */
   updateEmployee: async (id: string, data: any) => {
     return apiClient.put<ApiResponse<Employee>>(`/employees/${id}`, data);
+  },
+
+  /**
+   * Approve or reject an employee onboarding request
+   */
+  approveEmployee: async (id: string, isApproved: boolean) => {
+    return apiClient.put<ApiResponse<Employee>>(`/employees/${id}/approve?isApproved=${isApproved}`);
   },
 
   /**
@@ -99,6 +107,27 @@ export const EmployeeService = {
    */
   registerFace: async (id: string, embeddings: any[]) => {
     return apiClient.post<ApiResponse<any>>(`/employees/${id}/face`, embeddings);
+  },
+
+  /**
+   * Get the authenticated user's own profile.
+   */
+  getMyProfile: async () => {
+    return apiClient.get<ApiResponse<Employee>>('/employees/me');
+  },
+
+  /**
+   * Update the authenticated user's bank details.
+   */
+  updateMyBankDetails: async (bankDetails: { bankName: string; bankAccountNumber: string; bankIfscCode: string }) => {
+    return apiClient.patch<ApiResponse<Employee>>('/employees/me/bank-details', bankDetails);
+  },
+
+  /**
+   * Update the authenticated user's preferred language.
+   */
+  updateMyLanguage: async (lang: string) => {
+    return apiClient.patch<ApiResponse<any>>(`/employees/me/language?lang=${encodeURIComponent(lang)}`);
   },
 };
 

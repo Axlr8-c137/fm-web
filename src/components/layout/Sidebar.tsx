@@ -1,6 +1,8 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/auth.store';
+import { Logo } from '../common';
+
 import {
   Drawer,
   List,
@@ -33,8 +35,8 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE'] },
-  { text: 'Employees', icon: <PeopleIcon />, path: '/employees', roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE', 'CLIENT'] },
+  { text: 'Employees', icon: <PeopleIcon />, path: '/employees', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
   { text: 'Sites', icon: <LocationIcon />, path: '/sites', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { text: 'Attendance', icon: <AttendanceIcon />, path: '/attendance', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
   { text: 'Operations', icon: <OpsIcon />, path: '/ops', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
@@ -51,11 +53,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'perm
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ px: [1, 2], display: 'flex', alignItems: 'center', gap: 1 }}>
-        <BusinessIcon color="primary" />
-        <Typography variant="h6" color="primary" noWrap sx={{ fontWeight: 700 }}>
-          FM PORTAL
-        </Typography>
+      <Toolbar sx={{ px: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', py: 1.5 }}>
+        <Logo 
+          size={38}
+          showText={true}
+          textPosition="right"
+          textColor="primary.main"
+          subTextColor="text.secondary"
+          hoverEffect={true}
+        />
       </Toolbar>
       <Divider />
       <List sx={{ flexGrow: 1, px: 1 }}>
@@ -69,22 +75,22 @@ export const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'perm
                   if (onClose) onClose();
                 }}
                 selected={isActive}
-                sx={{
+                sx={(theme) => ({
                   minHeight: 48,
                   justifyContent: open ? 'initial' : 'center',
                   px: 2.5,
                   borderRadius: 2,
                   '&.Mui-selected': {
                     backgroundColor: 'primary.light',
-                    color: 'primary.main',
+                    color: theme.palette.mode === 'light' ? 'primary.main' : '#000000',
                     '& .MuiListItemIcon-root': {
-                      color: 'primary.main',
+                      color: theme.palette.mode === 'light' ? 'primary.main' : '#000000',
                     },
                     '&:hover': {
                       backgroundColor: 'primary.light',
                     }
                   },
-                }}
+                })}
               >
                 <ListItemIcon
                   sx={{

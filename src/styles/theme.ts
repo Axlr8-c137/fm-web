@@ -6,9 +6,9 @@ export const getTheme = (mode: PaletteMode) => {
       mode,
       primary: {
         main: mode === 'light' ? '#1A73E8' : '#8AB4F8', // Google Blue / M3 Blue
-        light: '#E8F0FE',
+        light: mode === 'light' ? '#E8F0FE' : '#0BA8E6',
         dark: '#174EA6',
-        contrastText: '#FFFFFF',
+        contrastText: mode === 'light' ? '#FFFFFF' : '#000000',
       },
       secondary: {
         main: mode === 'light' ? '#00796B' : '#4DB6AC',
@@ -56,7 +56,8 @@ export const getTheme = (mode: PaletteMode) => {
             ...(ownerState.variant === 'contained' && ownerState.color === 'primary' && {
               background: theme.palette.mode === 'light' 
                 ? 'linear-gradient(45deg, #1A73E8 30%, #4285F4 90%)'
-                : 'linear-gradient(45deg, #8AB4F8 30%, #ADCCFF 90%)',
+                : 'linear-gradient(45deg, #0BA8E6 30%, #00B0FF 90%)',
+              color: theme.palette.mode === 'light' ? '#FFFFFF' : '#000000',
             }),
           }),
         },

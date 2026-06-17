@@ -23,6 +23,8 @@ import {
 import { useThemeStore } from '../../stores/themeStore';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNavigate } from 'react-router-dom';
+import { Logo } from '../common';
+
 
 function stringToColor(string: string) {
   let hash = 0;
@@ -108,9 +110,16 @@ export const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
           <MenuIcon />
         </IconButton>
         
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-          Facility Management
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexGrow: 1 }}>
+          <Logo 
+            size={32}
+            showText={true}
+            textPosition="right"
+            textColor={mode === 'light' ? '#0c342b' : '#ffffff'}
+            subTextColor={mode === 'light' ? '#9a7d23' : 'rgba(255, 255, 255, 0.75)'}
+            hoverEffect={true}
+          />
+        </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}>
@@ -142,8 +151,8 @@ export const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
               transformOrigin={{ horizontal: 'right', vertical: 'top' }}
               anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
             >
-              <MenuItem onClick={handleClose}>Profile</MenuItem>
-              <MenuItem onClick={handleClose}>My Account</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>Profile</MenuItem>
+              <MenuItem onClick={() => { handleClose(); navigate('/profile'); }}>My Account</MenuItem>
               <Divider sx={{ my: 1 }} />
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
