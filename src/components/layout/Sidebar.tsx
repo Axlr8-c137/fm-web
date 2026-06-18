@@ -23,7 +23,8 @@ import {
   Payments as PayrollIcon,
   AdminPanelSettings as AdminIcon,
   Map as OpsIcon,
-  Business as BusinessIcon
+  CalendarMonth as ScheduleIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 
 const drawerWidth = 260;
@@ -36,12 +37,14 @@ interface SidebarProps {
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE', 'CLIENT'] },
+  { text: 'Schedules', icon: <ScheduleIcon />, path: '/schedules', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'EMPLOYEE'] },
   { text: 'Employees', icon: <PeopleIcon />, path: '/employees', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
   { text: 'Sites', icon: <LocationIcon />, path: '/sites', roles: ['ADMIN', 'SUPER_ADMIN'] },
   { text: 'Attendance', icon: <AttendanceIcon />, path: '/attendance', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
   { text: 'Operations', icon: <OpsIcon />, path: '/ops', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
   { text: 'Payroll', icon: <PayrollIcon />, path: '/payroll', roles: ['ADMIN', 'SUPER_ADMIN', 'PAYROLL_ADMIN'] },
   { text: 'Admin', icon: <AdminIcon />, path: '/admin', roles: ['ADMIN', 'SUPER_ADMIN'] },
+  { text: 'Archived Records', icon: <HistoryIcon />, path: '/employees/archived', roles: ['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR'] },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({ open, onClose, variant = 'permanent' }) => {

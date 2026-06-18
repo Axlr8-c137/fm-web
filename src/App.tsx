@@ -5,6 +5,7 @@ import LoginPage from './pages/auth/LoginPage';
 import ForbiddenPage from './pages/auth/ForbiddenPage';
 import EmployeesPage from './pages/employees/EmployeesPage';
 import EmployeeOnboardingPage from './pages/employees/EmployeeOnboardingPage';
+import ArchivedEmployeesPage from './pages/employees/ArchivedEmployeesPage';
 import SiteListPage from './pages/sites/SiteListPage';
 import SiteDetailsPage from './pages/sites/SiteDetailsPage';
 import AttendanceLogsPage from './pages/attendance/AttendanceLogsPage';
@@ -13,6 +14,7 @@ import PayrollPage from './pages/payroll/PayrollPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
 import ProfilePage from './pages/profile/ProfilePage';
+import SchedulesPage from './pages/schedules/SchedulesPage';
 import { MainLayout } from './components/layout/MainLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { RoleProtectedRoute } from './components/auth/RoleProtectedRoute';
@@ -55,10 +57,15 @@ function App() {
             <Route path="profile" element={<ProfilePage />} />
           </Route>
           
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'EMPLOYEE']} />}>
+            <Route path="schedules" element={<SchedulesPage />} />
+          </Route>
+          
           {/* Employees access for Admin, Super Admin & Supervisor */}
           <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR']} />}>
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="employees/onboard" element={<EmployeeOnboardingPage />} />
+            <Route path="employees/archived" element={<ArchivedEmployeesPage />} />
           </Route>
 
           {/* Admin & Super Admin Only Routes */}

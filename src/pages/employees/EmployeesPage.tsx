@@ -96,6 +96,7 @@ const EmployeesPage: React.FC = () => {
     resolver: zodResolver(editSchema),
   });
 
+
   const handleEditClick = (employee: any) => {
     const parts = employee.fullName.split(' ');
     const firstName = parts[0];
@@ -571,6 +572,8 @@ const EmployeesPage: React.FC = () => {
         loading={isEmployeesLoading}
         getRowId={(row) => row.id}
       />
+
+
 
       {/* Delete Dialog */}
       <Dialog open={!!employeeToDelete && !showSecondConfirm} onClose={() => !isDeleting && setEmployeeToDelete(null)}>

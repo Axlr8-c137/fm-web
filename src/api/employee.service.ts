@@ -129,5 +129,21 @@ export const EmployeeService = {
   updateMyLanguage: async (lang: string) => {
     return apiClient.patch<ApiResponse<any>>(`/employees/me/language?lang=${encodeURIComponent(lang)}`);
   },
+
+  /**
+   * Get archived employees (deleted within last 90 days)
+   */
+  getArchivedEmployees: async (query?: string) => {
+    const qParam = query ? `?query=${encodeURIComponent(query)}` : '';
+    const limitParam = query ? `&limit=100` : '?limit=100';
+    return apiClient.get<ApiResponse<Employee[]>>(`/employees/archived${qParam}${limitParam}`);
+  },
+
+  /**
+   * Restore an archived employee
+   */
+  restoreEmployee: async (id: string) => {
+    return apiClient.post<ApiResponse<Employee>>(`/employees/${id}/restore`);
+  },
 };
 
