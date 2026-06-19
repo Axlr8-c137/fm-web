@@ -47,4 +47,5 @@ export interface Employee {
   termsAndConditionsAccepted?: boolean;
   aadhaar?: string;
   pan?: string;
+  photoUrl?: string;
 }

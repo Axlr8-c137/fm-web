@@ -18,6 +18,13 @@ import {
   LinearProgress,
   Tooltip,
   IconButton,
+  Switch,
+  FormControlLabel,
+  Checkbox,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Avatar,
 } from '@mui/material';
 import {
   Person as PersonIcon,
@@ -29,15 +36,24 @@ import {
   HourglassEmpty as PendingIcon,
   Visibility as ViewIcon,
   Close as CloseIcon,
+  Fingerprint as FingerprintIcon,
+  Work as WorkIcon,
+  Height as HeightIcon,
+  Home as HomeIcon,
+  AccountBalance as AccountBalanceIcon,
+  Language as LanguageIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod'  ;
+import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { EmployeeService } from '../../api/employee.service';
 import { useAuthStore } from '../../stores/auth.store';
 import apiClient from '../../api/client';
+import ratnamLogo from '../../assets/ratnam.png';
+import { normalizeUrl } from '../../utils/url';
 
 const Typography = MuiTypography as any;
 
@@ -50,6 +66,35 @@ const basicInfoSchema = z.object({
   joiningDate: z.date(),
   organizationId: z.string().optional(),
   siteId: z.string().optional(),
+  
+  // New fields
+  dob: z.date().nullable().optional(),
+  gender: z.string().optional(),
+  maritalStatus: z.string().optional(),
+  bloodGroup: z.string().optional(),
+  aadhaar: z.string().regex(/^\d{12}$/, 'Aadhaar must be exactly 12 digits').optional().or(z.literal('')),
+  pan: z.string().regex(/^[A-Z]{5}\d{4}[A-Z]$/i, 'Invalid PAN format').optional().or(z.literal('')),
+  education: z.string().optional(),
+  languagesKnown: z.string().optional(),
+  designation: z.string().optional(),
+  form11Number: z.string().optional(),
+  uanNumber: z.string().optional(),
+  esicNumber: z.string().optional(),
+  policeVerificationStatus: z.boolean().optional(),
+  heightFeet: z.string().regex(/^\d*$/, 'Must be a number').optional().or(z.literal('')),
+  heightInches: z.string().regex(/^\d*$/, 'Must be a number').optional().or(z.literal('')),
+  weightKg: z.string().regex(/^\d*\.?\d*$/, 'Must be a number').optional().or(z.literal('')),
+  emergencyContactNumber: z.string().regex(/^\d{10}$/, 'Emergency contact must be 10 digits').optional().or(z.literal('')),
+  residentialAddress: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  residentialProofStatus: z.boolean().optional(),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().regex(/^\d*$/, 'Must be a number').optional().or(z.literal('')),
+  bankIfscCode: z.string().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/i, 'Invalid IFSC format').optional().or(z.literal('')),
+  preferredLang: z.string().optional(),
+  termsAndConditionsAccepted: z.boolean().optional(),
+  photoUrl: z.string().optional().or(z.literal('')),
 });
 
 type BasicInfoSchema = z.infer<typeof basicInfoSchema>;
@@ -96,6 +141,7 @@ export default function EmployeeOnboardingPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [createdEmployeeId, setCreatedEmployeeId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [sites, setSites] = useState<any[]>([]);
@@ -163,6 +209,33 @@ export default function EmployeeOnboardingPage() {
       joiningDate: new Date(),
       organizationId: '',
       siteId: '',
+      dob: null,
+      gender: '',
+      maritalStatus: '',
+      bloodGroup: '',
+      aadhaar: '',
+      pan: '',
+      education: '',
+      languagesKnown: '',
+      designation: '',
+      form11Number: '',
+      uanNumber: '',
+      esicNumber: '',
+      policeVerificationStatus: false,
+      heightFeet: '',
+      heightInches: '',
+      weightKg: '',
+      emergencyContactNumber: '',
+      residentialAddress: '',
+      city: '',
+      state: '',
+      residentialProofStatus: false,
+      bankName: '',
+      bankAccountNumber: '',
+      bankIfscCode: '',
+      preferredLang: 'en',
+      termsAndConditionsAccepted: false,
+      photoUrl: ratnamLogo,
     }
   });
 
@@ -253,12 +326,40 @@ export default function EmployeeOnboardingPage() {
 
       const payload: any = {
         fullName: `${data.firstName} ${data.lastName}`,
-        email: data.email,
+        email: data.email || undefined,
         phone: data.phone.replace(/\s+/g, ''),
         role: data.role,
         status: 'ACTIVE',
         enrollmentDate: data.joiningDate ? data.joiningDate.toISOString().split('T')[0] : null,
         organizationId: selectedOrgId,
+        dob: data.dob ? data.dob.toISOString().split('T')[0] : null,
+        dateOfBirth: data.dob ? data.dob.toISOString().split('T')[0] : null,
+        gender: data.gender || undefined,
+        maritalStatus: data.maritalStatus || undefined,
+        bloodGroup: data.bloodGroup || undefined,
+        aadhaar: data.aadhaar || undefined,
+        pan: data.pan ? data.pan.toUpperCase() : undefined,
+        education: data.education || undefined,
+        languagesKnown: data.languagesKnown || undefined,
+        designation: data.designation || undefined,
+        form11Number: data.form11Number || undefined,
+        uanNumber: data.uanNumber || undefined,
+        esicNumber: data.esicNumber || undefined,
+        policeVerificationStatus: data.policeVerificationStatus || false,
+        heightFeet: (data.heightFeet && !isNaN(parseInt(data.heightFeet))) ? parseInt(data.heightFeet) : null,
+        heightInches: (data.heightInches && !isNaN(parseInt(data.heightInches))) ? parseInt(data.heightInches) : null,
+        weightKg: (data.weightKg && !isNaN(parseFloat(data.weightKg))) ? parseFloat(data.weightKg) : null,
+        emergencyContactNumber: data.emergencyContactNumber || undefined,
+        residentialAddress: data.residentialAddress || undefined,
+        city: data.city || undefined,
+        state: data.state || undefined,
+        residentialProofStatus: data.residentialProofStatus || false,
+        bankName: data.bankName || undefined,
+        bankAccountNumber: data.bankAccountNumber || undefined,
+        bankIfscCode: data.bankIfscCode ? data.bankIfscCode.toUpperCase() : undefined,
+        preferredLang: data.preferredLang || 'en',
+        termsAndConditionsAccepted: data.termsAndConditionsAccepted || false,
+        photoUrl: data.photoUrl || null,
       };
       // Only include siteId if one was selected
       if (data.siteId) payload.siteId = data.siteId;
@@ -327,189 +428,824 @@ export default function EmployeeOnboardingPage() {
     switch (step) {
       case 0:
         return (
-          <Box component="form" id="basic-info-form" onSubmit={handleSubmit(onBasicInfoSubmit)}>
+          <Box component="form" id="basic-info-form" onSubmit={handleSubmit(onBasicInfoSubmit)} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             {apiError && (
-              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }} onClose={() => setApiError(null)}>
+              <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }} onClose={() => setApiError(null)}>
                 {apiError}
               </Alert>
             )}
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="firstName"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth label="First Name" placeholder="John" variant="outlined"
-                      error={!!errors.firstName} helperText={errors.firstName?.message}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
+
+            {/* Accordion 1: Basic Information */}
+            <Accordion defaultExpanded sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <PersonIcon color="primary" />
+                  <Typography fontWeight={700}>Basic Information</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  {/* Profile Photo Upload */}
+                  <Grid size={{ xs: 12 }} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                    <Controller
+                      name="photoUrl"
+                      control={control}
+                      render={({ field }) => {
+                        const initials = (watch('firstName') || watch('lastName'))
+                          ? `${watch('firstName')?.[0] || ''}${watch('lastName')?.[0] || ''}`.toUpperCase()
+                          : '?';
+                        return (
+                          <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="onboard-profile-photo-input"
+                              style={{ display: 'none' }}
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                setIsPhotoUploading(true);
+                                try {
+                                  const url = await EmployeeService.uploadDocumentFile(file);
+                                  field.onChange(url);
+                                } catch (err: any) {
+                                  alert('Failed to upload photo: ' + (err.message || 'Unknown error'));
+                                } finally {
+                                  setIsPhotoUploading(false);
+                                }
+                              }}
+                            />
+                            <label htmlFor="onboard-profile-photo-input">
+                              <Tooltip title="Upload Profile Photo">
+                                <Box sx={{
+                                  position: 'relative',
+                                  cursor: 'pointer',
+                                  borderRadius: '50%',
+                                  overflow: 'hidden',
+                                  width: 100,
+                                  height: 100,
+                                  border: `3px solid ${theme.palette.primary.main}`,
+                                  '&:hover .upload-overlay': {
+                                    opacity: 1
+                                  }
+                                }}>
+                                  <Avatar
+                                    src={normalizeUrl(field.value)}
+                                    sx={{
+                                      width: '100%',
+                                      height: '100%',
+                                      fontSize: '2.5rem',
+                                      fontWeight: 700,
+                                      bgcolor: 'grey.200',
+                                      color: 'text.secondary'
+                                    }}
+                                  >
+                                    {initials}
+                                  </Avatar>
+                                  
+                                  {/* Upload Hover Overlay */}
+                                  <Box className="upload-overlay" sx={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    bgcolor: 'rgba(0,0,0,0.5)',
+                                    color: 'common.white',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    opacity: 0,
+                                    transition: 'opacity 0.2s ease-in-out',
+                                  }}>
+                                    <UploadIcon fontSize="small" />
+                                    <Typography variant="caption" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 600 }}>
+                                      UPLOAD
+                                    </Typography>
+                                  </Box>
+
+                                  {/* Uploading Spinner */}
+                                  {isPhotoUploading && (
+                                    <Box sx={{
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      width: '100%',
+                                      height: '100%',
+                                      bgcolor: 'rgba(0,0,0,0.6)',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                    }}>
+                                      <CircularProgress size={28} />
+                                    </Box>
+                                  )}
+                                </Box>
+                              </Tooltip>
+                            </label>
+                          </Box>
+                        );
+                      }}
                     />
-                  )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="lastName"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth label="Last Name" placeholder="Doe" variant="outlined"
-                      error={!!errors.lastName} helperText={errors.lastName?.message}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                  </Grid>
+
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="firstName"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="First Name" placeholder="John" variant="outlined"
+                          error={!!errors.firstName} helperText={errors.firstName?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
                     />
-                  )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="email"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth label="Email" placeholder="john.doe@example.com" variant="outlined"
-                      error={!!errors.email} helperText={errors.email?.message}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="lastName"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Last Name" placeholder="Doe" variant="outlined"
+                          error={!!errors.lastName} helperText={errors.lastName?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
                     />
-                  )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="phone"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth label="Phone" placeholder="+91 98765 43210" variant="outlined"
-                      error={!!errors.phone} helperText={errors.phone?.message}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                      onChange={(e) => {
-                        let val = e.target.value;
-                        if (!val.startsWith('+91 ')) {
-                          if (val.startsWith('+91')) {
-                            val = '+91 ' + val.substring(3).trim();
-                          } else if (val.startsWith('+')) {
-                            val = '+91 ' + val.substring(1).replace(/\D/g, '');
-                          } else {
-                            val = '+91 ' + val.replace(/\D/g, '');
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="email"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Email" placeholder="john.doe@example.com" variant="outlined"
+                          error={!!errors.email} helperText={errors.email?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="phone"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Phone" placeholder="+91 98765 43210" variant="outlined"
+                          error={!!errors.phone} helperText={errors.phone?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            let val = e.target.value;
+                            if (!val.startsWith('+91 ')) {
+                              if (val.startsWith('+91')) {
+                                val = '+91 ' + val.substring(3).trim();
+                              } else if (val.startsWith('+')) {
+                                val = '+91 ' + val.substring(1).replace(/\D/g, '');
+                              } else {
+                                val = '+91 ' + val.replace(/\D/g, '');
+                              }
+                            }
+                            let digits = val.substring(4).replace(/\D/g, '');
+                            if (digits.length > 10) digits = digits.substring(0, 10);
+                            field.onChange('+91 ' + digits);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="dob"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker
+                          label="Date of Birth"
+                          value={field.value}
+                          onChange={(date) => field.onChange(date)}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true, variant: 'outlined',
+                              error: !!errors.dob,
+                              helperText: errors.dob?.message,
+                              slotProps: { input: { sx: { borderRadius: 2 } } }
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="gender"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth select label="Gender" variant="outlined"
+                          error={!!errors.gender} helperText={errors.gender?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        >
+                          <MenuItem value=""><em>Select Gender</em></MenuItem>
+                          <MenuItem value="Male">Male</MenuItem>
+                          <MenuItem value="Female">Female</MenuItem>
+                          <MenuItem value="Other">Other</MenuItem>
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="maritalStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth select label="Marital Status" variant="outlined"
+                          error={!!errors.maritalStatus} helperText={errors.maritalStatus?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        >
+                          <MenuItem value=""><em>Select Marital Status</em></MenuItem>
+                          <MenuItem value="Single">Single</MenuItem>
+                          <MenuItem value="Married">Married</MenuItem>
+                          <MenuItem value="Divorced">Divorced</MenuItem>
+                          <MenuItem value="Widowed">Widowed</MenuItem>
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="bloodGroup"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth select label="Blood Group" variant="outlined"
+                          error={!!errors.bloodGroup} helperText={errors.bloodGroup?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        >
+                          <MenuItem value=""><em>Select Blood Group</em></MenuItem>
+                          {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((bg) => (
+                            <MenuItem key={bg} value={bg}>{bg}</MenuItem>
+                          ))}
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Accordion 2: Identity & Education */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <FingerprintIcon color="primary" />
+                  <Typography fontWeight={700}>Identity & Education</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="aadhaar"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Aadhaar Number" placeholder="12-digit number" variant="outlined"
+                          error={!!errors.aadhaar} helperText={errors.aadhaar?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').substring(0, 12);
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="pan"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="PAN Number" placeholder="ABCDE1234F" variant="outlined"
+                          error={!!errors.pan} helperText={errors.pan?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase().substring(0, 10);
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="education"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Education" placeholder="e.g. High School, Graduate" variant="outlined"
+                          error={!!errors.education} helperText={errors.education?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="languagesKnown"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Languages Known" placeholder="e.g. English, Hindi, Marathi" variant="outlined"
+                          error={!!errors.languagesKnown} helperText={errors.languagesKnown?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Accordion 3: Work Details */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <WorkIcon color="primary" />
+                  <Typography fontWeight={700}>Work Details</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="role"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth select label="Role" variant="outlined"
+                          error={!!errors.role} helperText={errors.role?.message}
+                          disabled={isSupervisor}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        >
+                          <MenuItem value="EMPLOYEE">Employee</MenuItem>
+                          <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
+                          <MenuItem value="ADMIN">Admin</MenuItem>
+                          <MenuItem value="CLIENT">Client</MenuItem>
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="joiningDate"
+                      control={control}
+                      render={({ field }) => (
+                        <DatePicker
+                          label="Joining Date"
+                          value={field.value}
+                          onChange={(date) => field.onChange(date)}
+                          slotProps={{
+                            textField: {
+                              fullWidth: true, variant: 'outlined',
+                              error: !!errors.joiningDate,
+                              helperText: errors.joiningDate?.message,
+                              slotProps: { input: { sx: { borderRadius: 2 } } }
+                            }
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="designation"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Designation" placeholder="e.g. Security Guard" variant="outlined"
+                          error={!!errors.designation} helperText={errors.designation?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="form11Number"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Form 11 Number" placeholder="Form 11" variant="outlined"
+                          error={!!errors.form11Number} helperText={errors.form11Number?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="uanNumber"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="UAN Number" placeholder="UAN" variant="outlined"
+                          error={!!errors.uanNumber} helperText={errors.uanNumber?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="esicNumber"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="ESIC Number" placeholder="ESIC" variant="outlined"
+                          error={!!errors.esicNumber} helperText={errors.esicNumber?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Controller
+                      name="policeVerificationStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              color="primary"
+                            />
                           }
-                        }
-                        let digits = val.substring(4).replace(/\D/g, '');
-                        if (digits.length > 10) digits = digits.substring(0, 10);
-                        field.onChange('+91 ' + digits);
-                      }}
+                          label="Police Verification Status"
+                        />
+                      )}
                     />
+                  </Grid>
+
+                  {user?.role === 'SUPER_ADMIN' && (
+                    <Grid size={{ xs: 12 }}>
+                      <Controller
+                        name="organizationId"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth select label="Assign Organization" variant="outlined"
+                            error={!!errors.organizationId} helperText={errors.organizationId?.message}
+                            slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          >
+                            <MenuItem value=""><em>Select Organization</em></MenuItem>
+                            {organizations.map((org: any) => (
+                              <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
+                            ))}
+                          </TextField>
+                        )}
+                      />
+                    </Grid>
                   )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="role"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      fullWidth select label="Role" variant="outlined"
-                      error={!!errors.role} helperText={errors.role?.message}
-                      disabled={isSupervisor}
-                      slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                    >
-                      <MenuItem value="EMPLOYEE">Employee</MenuItem>
-                      <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
-                      <MenuItem value="ADMIN">Admin</MenuItem>
-                      <MenuItem value="CLIENT">Client</MenuItem>
-                    </TextField>
+
+                  {!isSupervisor && (
+                    <Grid size={{ xs: 12 }}>
+                      <Controller
+                        name="siteId"
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth select label="Assign Site (Optional)" variant="outlined"
+                            disabled={sitesLoading || sites.length === 0}
+                            helperText={
+                              sitesLoading
+                                ? 'Loading sites…'
+                                : sites.length === 0
+                                  ? user?.role === 'SUPER_ADMIN'
+                                    ? 'Select an organization first to see its sites'
+                                    : 'No active sites found for your organization'
+                                  : 'Select the site this employee will be assigned to'
+                            }
+                            slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          >
+                            <MenuItem value=""><em>No Site Assigned</em></MenuItem>
+                            {sites.map((site: any) => (
+                              <MenuItem key={site.id} value={site.id}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontWeight: 600 }}>{site.name}</span>
+                                  {site.address && (
+                                    <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                                      {site.address}
+                                    </span>
+                                  )}
+                                </Box>
+                              </MenuItem>
+                            ))}
+                          </TextField>
+                        )}
+                      />
+                    </Grid>
                   )}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, md: 6 }}>
-                <Controller
-                  name="joiningDate"
-                  control={control}
-                  render={({ field }) => (
-                    <DatePicker
-                      label="Joining Date"
-                      value={field.value}
-                      onChange={(date) => field.onChange(date)}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true, variant: 'outlined',
-                          error: !!errors.joiningDate,
-                          helperText: errors.joiningDate?.message,
-                          slotProps: { input: { sx: { borderRadius: 2 } } }
-                        }
-                      }}
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Accordion 4: Physical Attributes */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <HeightIcon color="primary" />
+                  <Typography fontWeight={700}>Physical Attributes</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="heightFeet"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Height (ft)" placeholder="e.g. 5" variant="outlined"
+                          error={!!errors.heightFeet} helperText={errors.heightFeet?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
                     />
-                  )}
-                />
-              </Grid>
-
-              {user?.role === 'SUPER_ADMIN' && (
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="organizationId"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth select label="Assign Organization" variant="outlined"
-                        error={!!errors.organizationId} helperText={errors.organizationId?.message}
-                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                      >
-                        <MenuItem value=""><em>Select Organization</em></MenuItem>
-                        {organizations.map((org: any) => (
-                          <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                  />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="heightInches"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Height (in)" placeholder="e.g. 9" variant="outlined"
+                          error={!!errors.heightInches} helperText={errors.heightInches?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="weightKg"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Weight (kg)" placeholder="e.g. 70" variant="outlined"
+                          error={!!errors.weightKg} helperText={errors.weightKg?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.]/g, '');
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
                 </Grid>
-              )}
+              </AccordionDetails>
+            </Accordion>
 
-              {/* Site assignment — shown for non-supervisor roles once sites are available */}
-              {!isSupervisor && (
-                <Grid size={{ xs: 12 }}>
-                  <Controller
-                    name="siteId"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth select label="Assign Site (Optional)" variant="outlined"
-                        disabled={sitesLoading || sites.length === 0}
-                        helperText={
-                          sitesLoading
-                            ? 'Loading sites…'
-                            : sites.length === 0
-                              ? user?.role === 'SUPER_ADMIN'
-                                ? 'Select an organization first to see its sites'
-                                : 'No active sites found for your organization'
-                              : 'Select the site this employee will be assigned to'
-                        }
-                        slotProps={{ input: { sx: { borderRadius: 2 } } }}
-                      >
-                        <MenuItem value=""><em>No Site Assigned</em></MenuItem>
-                        {sites.map((site: any) => (
-                          <MenuItem key={site.id} value={site.id}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontWeight: 600 }}>{site.name}</span>
-                              {site.address && (
-                                <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                                  {site.address}
-                                </span>
-                              )}
-                            </Box>
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                    )}
-                  />
+            {/* Accordion 5: Contact & Address */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <HomeIcon color="primary" />
+                  <Typography fontWeight={700}>Contact & Address</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="emergencyContactNumber"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Emergency Contact Number" placeholder="10-digit number" variant="outlined"
+                          error={!!errors.emergencyContactNumber} helperText={errors.emergencyContactNumber?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').substring(0, 10);
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Controller
+                      name="residentialAddress"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Residential Address" placeholder="Address" variant="outlined"
+                          error={!!errors.residentialAddress} helperText={errors.residentialAddress?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="city"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="City" placeholder="City" variant="outlined"
+                          error={!!errors.city} helperText={errors.city?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="state"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="State" placeholder="State" variant="outlined"
+                          error={!!errors.state} helperText={errors.state?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Controller
+                      name="residentialProofStatus"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              color="primary"
+                            />
+                          }
+                          label="Residential Proof Status"
+                        />
+                      )}
+                    />
+                  </Grid>
                 </Grid>
-              )}
-            </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Accordion 6: Bank Details */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <AccountBalanceIcon color="primary" />
+                  <Typography fontWeight={700}>Bank Details</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="bankName"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Bank Name" placeholder="Bank Name" variant="outlined"
+                          error={!!errors.bankName} helperText={errors.bankName?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="bankAccountNumber"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Bank Account Number" placeholder="Account Number" variant="outlined"
+                          error={!!errors.bankAccountNumber} helperText={errors.bankAccountNumber?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '');
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, md: 4 }}>
+                    <Controller
+                      name="bankIfscCode"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth label="Bank IFSC Code" placeholder="IFSC Code" variant="outlined"
+                          error={!!errors.bankIfscCode} helperText={errors.bankIfscCode?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase().substring(0, 11);
+                            field.onChange(val);
+                          }}
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
+
+            {/* Accordion 7: Preferences & Legal */}
+            <Accordion sx={{ borderRadius: 2, '&:before': { display: 'none' }, boxShadow: 'none', border: `1px solid ${theme.palette.divider}`, overflow: 'hidden' }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: `1px solid ${theme.palette.divider}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <LanguageIcon color="primary" />
+                  <Typography fontWeight={700}>Preferences</Typography>
+                </Box>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 3 }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Controller
+                      name="preferredLang"
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth select label="Preferred Language" variant="outlined"
+                          error={!!errors.preferredLang} helperText={errors.preferredLang?.message}
+                          slotProps={{ input: { sx: { borderRadius: 2 } } }}
+                        >
+                          <MenuItem value="en">English</MenuItem>
+                          <MenuItem value="hi">Hindi</MenuItem>
+                          <MenuItem value="mr">Marathi</MenuItem>
+                        </TextField>
+                      )}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Controller
+                      name="termsAndConditionsAccepted"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={!!field.value}
+                              onChange={(e) => field.onChange(e.target.checked)}
+                              color="primary"
+                            />
+                          }
+                          label="Accept Terms and Conditions"
+                        />
+                      )}
+                    />
+                  </Grid>
+                </Grid>
+              </AccordionDetails>
+            </Accordion>
           </Box>
         );
 
