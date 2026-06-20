@@ -109,9 +109,10 @@ interface DocSlot {
 
 // Document slots definition — required types must be uploaded before finish
 const DOC_SLOTS: DocSlot[] = [
-  { type: 'AADHAAR', label: 'Aadhaar Card', required: true, description: 'Front & back of Aadhaar card (PDF/JPG/PNG)', accept: '.pdf,.jpg,.jpeg,.png' },
+  { type: 'AADHAAR_FRONT', label: 'Aadhaar Card (Front)', required: true, description: 'Front side of Aadhaar card (PDF/JPG/PNG)', accept: '.pdf,.jpg,.jpeg,.png' },
+  { type: 'AADHAAR_BACK', label: 'Aadhaar Card (Back)', required: true, description: 'Back side of Aadhaar card (PDF/JPG/PNG)', accept: '.pdf,.jpg,.jpeg,.png' },
   { type: 'PAN', label: 'PAN Card', required: true, description: 'PAN card image or scanned document', accept: '.pdf,.jpg,.jpeg,.png' },
-  { type: 'BANK_PASSBOOK', label: 'Bank Passbook / Statement', required: false, description: 'First page of bank passbook or statement', accept: '.pdf,.jpg,.jpeg,.png' },
+  { type: 'BANK_PASSBOOK', label: 'Bank Passbook / Statement', required: true, description: 'First page of bank passbook or statement', accept: '.pdf,.jpg,.jpeg,.png' },
   { type: 'DRIVING_LICENSE', label: 'Driving License', required: false, description: 'Driving license (front & back)', accept: '.pdf,.jpg,.jpeg,.png' },
   { type: 'VOTER_ID', label: 'Voter ID', required: false, description: 'Voter identity card', accept: '.pdf,.jpg,.jpeg,.png' },
   { type: 'PASSPORT', label: 'Passport', required: false, description: 'Passport (first & last page)', accept: '.pdf,.jpg,.jpeg,.png' },

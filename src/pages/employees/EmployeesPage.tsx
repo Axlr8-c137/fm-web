@@ -269,6 +269,115 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  const renderDocCard = (doc: any, label?: string) => {
+    const isDocVerified = doc.verified || doc.isVerified;
+    const docLabel = label || doc.type.replaceAll('_', ' ');
+    return (
+      <Paper 
+        key={doc.id} 
+        variant="outlined" 
+        sx={{ 
+          p: 2.5, 
+          borderRadius: 3, 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: 2,
+          borderColor: isDocVerified
+            ? theme.palette.success.main + '40'
+            : doc.rejectionReason
+              ? theme.palette.error.main + '40'
+              : theme.palette.divider 
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700}>{docLabel}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Uploaded on: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '-'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button 
+              variant="text" 
+              size="small" 
+              href={doc.fileUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              sx={{ mr: 1 }}
+            >
+              View File
+            </Button>
+            <Chip 
+              label={isDocVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
+              color={isDocVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
+              size="small" 
+              sx={{ fontWeight: 700, borderRadius: 1 }}
+            />
+          </Box>
+        </Box>
+
+        {!isDocVerified && !isSupervisor && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button 
+                variant="contained" 
+                color="success" 
+                size="small"
+                onClick={() => handleVerifyDocument(doc.id, true)}
+                sx={{ borderRadius: 2 }}
+              >
+                Approve Document
+              </Button>
+              <Button 
+                variant="outlined" 
+                color="error" 
+                size="small"
+                onClick={() => setRejectingDocId(rejectingDocId === doc.id ? null : doc.id)}
+                sx={{ borderRadius: 2 }}
+              >
+                {rejectingDocId === doc.id ? 'Cancel' : 'Reject Document'}
+              </Button>
+            </Box>
+
+            {rejectingDocId === doc.id && (
+              <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Rejection Reason"
+                  placeholder="e.g. Aadhaar details are blurred"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                />
+                <Button 
+                  variant="contained" 
+                  color="error"
+                  size="small"
+                  disabled={!rejectionReason.trim()}
+                  onClick={() => {
+                    handleVerifyDocument(doc.id, false, rejectionReason);
+                    setRejectingDocId(null);
+                    setRejectionReason('');
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Confirm
+                </Button>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {doc.rejectionReason && (
+          <Box sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2 }}>
+            <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>REJECTION REASON:</Typography>
+            <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>{doc.rejectionReason}</Typography>
+          </Box>
+        )}
+      </Paper>
+    );
+  };
+
   const { data: employeesData, isLoading: isEmployeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees'],
     queryFn: () => EmployeeService.getEmployees(),
@@ -1510,119 +1619,67 @@ const EmployeesPage: React.FC = () => {
                     Identification Documents
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                  {employeeDetails.documents && employeeDetails.documents.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {employeeDetails.documents.map((doc: any) => {
-                        const isDocVerified = doc.verified || doc.isVerified;
-                        return (
+                  {(() => {
+                    if (!employeeDetails.documents || employeeDetails.documents.length === 0) {
+                      return <Typography variant="body2" color="text.secondary">No documents uploaded.</Typography>;
+                    }
+
+                    const aadhaarFront = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR_FRONT');
+                    const aadhaarBack = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR_BACK');
+                    const legacyAadhaar = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR');
+                    const otherDocs = employeeDetails.documents.filter((d: any) => d.type !== 'AADHAAR' && d.type !== 'AADHAAR_FRONT' && d.type !== 'AADHAAR_BACK');
+
+                    const hasAadhaar = aadhaarFront || aadhaarBack || legacyAadhaar;
+
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {hasAadhaar && (
                           <Paper 
-                            key={doc.id} 
                             variant="outlined" 
                             sx={{ 
                               p: 2.5, 
                               borderRadius: 3, 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              gap: 2,
-                              borderColor: isDocVerified
-                                ? theme.palette.success.main + '40'
-                                : doc.rejectionReason
-                                  ? theme.palette.error.main + '40'
-                                  : theme.palette.divider 
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                              backgroundColor: alpha(theme.palette.primary.main, 0.01)
                             }}
                           >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box>
-                                <Typography variant="subtitle2" fontWeight={700}>{doc.type}</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                  Uploaded on: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '-'}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                              <BadgeIcon color="primary" />
+                              <Typography variant="subtitle2" fontWeight={800}>AADHAAR CARD</Typography>
+                              {employeeDetails.aadhaar && (
+                                <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ ml: 'auto' }}>
+                                  Number: {employeeDetails.aadhaar}
                                 </Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Button 
-                                  variant="text" 
-                                  size="small" 
-                                  href={doc.fileUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  sx={{ mr: 1 }}
-                                >
-                                  View File
-                                </Button>
-                                <Chip 
-                                  label={isDocVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
-                                  color={isDocVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
-                                  size="small" 
-                                  sx={{ fontWeight: 700, borderRadius: 1 }}
-                                />
-                              </Box>
+                              )}
                             </Box>
-
-                            {!isDocVerified && !isSupervisor && (
-                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
-                                <Box sx={{ display: 'flex', gap: 2 }}>
-                                  <Button 
-                                    variant="contained" 
-                                    color="success" 
-                                    size="small"
-                                    onClick={() => handleVerifyDocument(doc.id, true)}
-                                    sx={{ borderRadius: 2 }}
-                                  >
-                                    Approve Document
-                                  </Button>
-                                  <Button 
-                                    variant="outlined" 
-                                    color="error" 
-                                    size="small"
-                                    onClick={() => setRejectingDocId(rejectingDocId === doc.id ? null : doc.id)}
-                                    sx={{ borderRadius: 2 }}
-                                  >
-                                    {rejectingDocId === doc.id ? 'Cancel' : 'Reject Document'}
-                                  </Button>
-                                </Box>
-
-                                {rejectingDocId === doc.id && (
-                                  <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      label="Rejection Reason"
-                                      placeholder="e.g. Aadhaar details are blurred"
-                                      value={rejectionReason}
-                                      onChange={(e) => setRejectionReason(e.target.value)}
-                                    />
-                                    <Button 
-                                      variant="contained" 
-                                      color="error"
-                                      size="small"
-                                      disabled={!rejectionReason.trim()}
-                                      onClick={() => {
-                                        handleVerifyDocument(doc.id, false, rejectionReason);
-                                        setRejectingDocId(null);
-                                        setRejectionReason('');
-                                      }}
-                                      sx={{ borderRadius: 2 }}
-                                    >
-                                      Confirm
-                                    </Button>
-                                  </Box>
-                                )}
-                              </Box>
-                            )}
-
-                            {doc.rejectionReason && (
-                              <Box sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2 }}>
-                                <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>REJECTION REASON:</Typography>
-                                <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>{doc.rejectionReason}</Typography>
-                              </Box>
-                            )}
+                            <Grid container spacing={2}>
+                              {legacyAadhaar && (
+                                <Grid size={{ xs: 12 }}>
+                                  {renderDocCard(legacyAadhaar, "Full Document (Legacy)")}
+                                </Grid>
+                              )}
+                              {aadhaarFront && (
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  {renderDocCard(aadhaarFront, "Front Side")}
+                                </Grid>
+                              )}
+                              {aadhaarBack && (
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  {renderDocCard(aadhaarBack, "Back Side")}
+                                </Grid>
+                              )}
+                            </Grid>
                           </Paper>
-                        );
-                      })}
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">No documents uploaded.</Typography>
-                  )}
+                        )}
+
+                        {otherDocs.map((doc: any) => (
+                          <React.Fragment key={doc.id}>
+                            {renderDocCard(doc)}
+                          </React.Fragment>
+                        ))}
+                      </Box>
+                    );
+                  })()}
                 </Grid>
               </Grid>
             </Box>
