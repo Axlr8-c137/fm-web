@@ -52,7 +52,7 @@ function App() {
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           
-          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE', 'CLIENT']} />}>
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'PAYROLL_ADMIN', 'EMPLOYEE', 'CLIENT', 'ACCOUNT_TEAM', 'COMPLIANCE']} />}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="profile" element={<ProfilePage />} />
           </Route>
@@ -61,8 +61,8 @@ function App() {
             <Route path="schedules" element={<SchedulesPage />} />
           </Route>
           
-          {/* Employees access for Admin, Super Admin & Supervisor */}
-          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR']} />}>
+          {/* Employees access for Admin, Super Admin, Supervisor & Compliance */}
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'SUPERVISOR', 'COMPLIANCE']} />}>
             <Route path="employees" element={<EmployeesPage />} />
             <Route path="employees/onboard" element={<EmployeeOnboardingPage />} />
             <Route path="employees/archived" element={<ArchivedEmployeesPage />} />
@@ -81,8 +81,8 @@ function App() {
              <Route path="ops" element={<OperationsPage />} />
           </Route>
 
-          {/* Payroll, Admin, Super Admin Routes */}
-          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'PAYROLL_ADMIN']} />}>
+          {/* Payroll, Admin, Super Admin, Account Team Routes */}
+          <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN', 'PAYROLL_ADMIN', 'ACCOUNT_TEAM']} />}>
              <Route path="payroll" element={<PayrollPage />} />
           </Route>
         </Route>

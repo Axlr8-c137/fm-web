@@ -809,6 +809,8 @@ export default function EmployeeOnboardingPage() {
                           <MenuItem value="SUPERVISOR">Supervisor</MenuItem>
                           <MenuItem value="ADMIN">Admin</MenuItem>
                           <MenuItem value="CLIENT">Client</MenuItem>
+                          <MenuItem value="ACCOUNT_TEAM">Account Team</MenuItem>
+                          <MenuItem value="COMPLIANCE">Compliance Login</MenuItem>
                         </TextField>
                       )}
                     />

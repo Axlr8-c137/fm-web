@@ -98,6 +98,8 @@ export default function AdminSettingsPage() {
     if (role === 'SUPER_ADMIN') color = 'error';
     else if (role === 'ADMIN') color = 'primary';
     else if (role === 'SUPERVISOR') color = 'warning';
+    else if (role === 'ACCOUNT_TEAM') color = 'success';
+    else if (role === 'COMPLIANCE') color = 'info';
     return (
       <Box
         component="span"
@@ -111,16 +113,24 @@ export default function AdminSettingsPage() {
             ? alpha(theme.palette.error.main, 0.1) 
             : color === 'warning'
             ? alpha(theme.palette.warning.main, 0.1)
+            : color === 'success'
+            ? alpha(theme.palette.success.main, 0.1)
+            : color === 'info'
+            ? alpha(theme.palette.info.main, 0.1)
             : alpha(theme.palette.primary.main, 0.1),
           color: color === 'error' 
             ? theme.palette.error.main 
             : color === 'warning'
             ? theme.palette.warning.main
+            : color === 'success'
+            ? theme.palette.success.main
+            : color === 'info'
+            ? theme.palette.info.main
             : theme.palette.primary.main,
           textTransform: 'uppercase',
         }}
       >
-        {role}
+        {role?.replace('_', ' ')}
       </Box>
     );
   };
@@ -970,6 +980,8 @@ export default function AdminSettingsPage() {
                       <MenuItem value="ADMIN">Admin</MenuItem>
                       <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>
                       <MenuItem value="CLIENT">Client</MenuItem>
+                      <MenuItem value="ACCOUNT_TEAM">Account Team</MenuItem>
+                      <MenuItem value="COMPLIANCE">Compliance Login</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -1144,6 +1156,8 @@ export default function AdminSettingsPage() {
                     <MenuItem value="ADMIN">Admin</MenuItem>
                     {isSuperAdmin && <MenuItem value="SUPER_ADMIN">Super Admin</MenuItem>}
                     <MenuItem value="CLIENT">Client</MenuItem>
+                    <MenuItem value="ACCOUNT_TEAM">Account Team</MenuItem>
+                    <MenuItem value="COMPLIANCE">Compliance Login</MenuItem>
                   </Select>
                 </FormControl>
                 {isSuperAdmin && !userToEdit && (

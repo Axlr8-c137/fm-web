@@ -1,4 +1,4 @@
-export type EmployeeRole = 'EMPLOYEE' | 'SUPERVISOR' | 'ADMIN' | 'SUPER_ADMIN' | 'CLIENT';
+export type EmployeeRole = 'EMPLOYEE' | 'SUPERVISOR' | 'ADMIN' | 'SUPER_ADMIN' | 'CLIENT' | 'ACCOUNT_TEAM' | 'COMPLIANCE';
 export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
 
 export interface Employee {
