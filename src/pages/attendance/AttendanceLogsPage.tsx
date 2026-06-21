@@ -121,7 +121,6 @@ export default function AttendanceLogsPage() {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   const hasManageAccess = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERVISOR';
 
   // State Management

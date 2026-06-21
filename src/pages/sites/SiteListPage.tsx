@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -28,6 +28,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Autocomplete,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -61,6 +62,14 @@ import { GoogleMapPickerModal } from '../../components/common/GoogleMapPickerMod
 import { useAuthStore } from '../../stores/auth.store';
 import type { GridColDef } from '@mui/x-data-grid';
 import type { Site } from '../../types/site';
+import apiClient from '../../api/client';
+
+const INR = (v: number | string | undefined | null) => {
+  if (v == null || v === '') return '—';
+  const num = typeof v === 'string' ? parseFloat(v) : v;
+  if (isNaN(num)) return '—';
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(num);
+};
 
 
 // Validation Schema for Site
@@ -88,6 +97,7 @@ const siteSchema = z.object({
   supervisorId: z.string().optional().or(z.literal('')),
   status: z.enum(['ACTIVE', 'INACTIVE']),
   isPayrollVisible: z.boolean().default(false),
+  isFixedPayroll: z.boolean().default(false),
 });
 
 type SiteSchema = z.infer<typeof siteSchema>;
@@ -178,6 +188,33 @@ export default function SiteListPage() {
   const [isDeactivating, setIsDeactivating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // Pay slip config state
+  const [isPayrollConfigOpen, setIsPayrollConfigOpen] = useState(false);
+  const [selectedSiteForPayroll, setSelectedSiteForPayroll] = useState<Site | null>(null);
+  const [siteEmployeesForPayroll, setSiteEmployeesForPayroll] = useState<any[]>([]);
+  const [payrollConfigLoading, setPayrollConfigLoading] = useState(false);
+  const [payrollConfigSaving, setPayrollConfigSaving] = useState(false);
+  
+  const [salaryForm, setSalaryForm] = useState({
+    basic: '15000',
+    da: '0',
+    hra: '5000',
+    washingAllowance: '0',
+    conveyance: '0',
+    special: '0',
+    medicalAllowance: '0',
+    booksAllowance: '0',
+    ltaAllowance: '0',
+    pfType: 'STANDARD',
+    pfCustomBasis: '',
+    esicType: 'STANDARD',
+    esicCustomBasis: '',
+    ptEnabled: true,
+    ptCustomAmount: '',
+    mlwfEnabled: false,
+    mlwfCustomAmount: '',
+  });
   const [addressOptions, setAddressOptions] = useState<any[]>([]);
   const [isAddressLoading, setIsAddressLoading] = useState(false);
   const [addressSearchQuery, setAddressSearchQuery] = useState('');
@@ -193,6 +230,7 @@ export default function SiteListPage() {
       supervisorId: '',
       status: 'ACTIVE',
       isPayrollVisible: false,
+      isFixedPayroll: false,
     },
   });
 
@@ -357,6 +395,7 @@ export default function SiteListPage() {
       supervisorId: '',
       status: 'ACTIVE',
       isPayrollVisible: false,
+      isFixedPayroll: false,
     });
     setSiteToEdit(null);
     setApiError(null);
@@ -373,11 +412,215 @@ export default function SiteListPage() {
       supervisorId: site.supervisorId || '',
       status: site.status,
       isPayrollVisible: site.isPayrollVisible || false,
+      isFixedPayroll: site.isFixedPayroll || false,
     });
     setSiteToEdit(site);
     setApiError(null);
     setIsFormOpen(true);
   };
+
+
+
+  const handleOpenPayrollConfig = async (site: Site) => {
+    setSelectedSiteForPayroll(site);
+    const siteEmps = employees.filter((emp: any) => emp.siteId === site.id);
+    setSiteEmployeesForPayroll(siteEmps);
+    setIsPayrollConfigOpen(true);
+    setPayrollConfigLoading(true);
+    
+    // Set standard defaults
+    setSalaryForm({
+      basic: '15000',
+      da: '0',
+      hra: '5000',
+      washingAllowance: '0',
+      conveyance: '0',
+      special: '0',
+      medicalAllowance: '0',
+      booksAllowance: '0',
+      ltaAllowance: '0',
+      pfType: 'STANDARD',
+      pfCustomBasis: '',
+      esicType: 'STANDARD',
+      esicCustomBasis: '',
+      ptEnabled: true,
+      ptCustomAmount: '',
+      mlwfEnabled: false,
+      mlwfCustomAmount: '',
+    });
+
+    if (siteEmps.length > 0) {
+      try {
+        for (const emp of siteEmps) {
+          try {
+            const res = await apiClient.get(`/payroll/salary-structure/${emp.id}`);
+            const structure = res?.data || res;
+            if (structure && structure.basic !== undefined) {
+              setSalaryForm({
+                basic: String(structure.basic),
+                da: String(structure.da || 0),
+                hra: String(structure.hra),
+                washingAllowance: String(structure.washingAllowance || 0),
+                conveyance: String(structure.conveyance || 0),
+                special: String(structure.special || 0),
+                medicalAllowance: String(structure.medicalAllowance || 0),
+                booksAllowance: String(structure.booksAllowance || 0),
+                ltaAllowance: String(structure.ltaAllowance || 0),
+                pfType: structure.pfType || 'STANDARD',
+                pfCustomBasis: String(structure.pfCustomBasis || ''),
+                esicType: structure.esicType || 'STANDARD',
+                esicCustomBasis: String(structure.esicCustomBasis || ''),
+                ptEnabled: structure.ptEnabled !== false,
+                ptCustomAmount: String(structure.ptCustomAmount || ''),
+                mlwfEnabled: !!structure.mlwfEnabled,
+                mlwfCustomAmount: String(structure.mlwfCustomAmount || ''),
+              });
+              break;
+            }
+          } catch (e) {
+            // Ignore 404 or other errors, continue to check next employee
+          }
+        }
+      } catch (err) {
+        console.error('Failed to pre-populate salary structure:', err);
+      }
+    }
+    setPayrollConfigLoading(false);
+  };
+
+  const handleSavePayrollConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (siteEmployeesForPayroll.length === 0) {
+      alert('There are no employees assigned to this site to configure.');
+      return;
+    }
+    setPayrollConfigSaving(true);
+    try {
+      const salaryPayload = {
+        basic: Number(salaryForm.basic),
+        da: Number(salaryForm.da || 0),
+        hra: Number(salaryForm.hra),
+        washingAllowance: Number(salaryForm.washingAllowance || 0),
+        conveyance: Number(salaryForm.conveyance || 0),
+        special: Number(salaryForm.special || 0),
+        medicalAllowance: Number(salaryForm.medicalAllowance || 0),
+        booksAllowance: Number(salaryForm.booksAllowance || 0),
+        ltaAllowance: Number(salaryForm.ltaAllowance || 0),
+        pfType: salaryForm.pfType,
+        pfCustomBasis: salaryForm.pfType === 'CUSTOM' ? Number(salaryForm.pfCustomBasis || 0) : 0,
+        esicType: salaryForm.esicType,
+        esicCustomBasis: salaryForm.esicType === 'CUSTOM' ? Number(salaryForm.esicCustomBasis || 0) : 0,
+        ptEnabled: salaryForm.ptEnabled,
+        ptCustomAmount: salaryForm.ptEnabled ? Number(salaryForm.ptCustomAmount || 0) : 0,
+        mlwfEnabled: salaryForm.mlwfEnabled,
+        mlwfCustomAmount: salaryForm.mlwfEnabled ? Number(salaryForm.mlwfCustomAmount || 0) : 0,
+      };
+
+      const promises = siteEmployeesForPayroll.map(async (emp) => {
+        let hasStructure = false;
+        try {
+          const check = await apiClient.get(`/payroll/salary-structure/${emp.id}`);
+          if (check && (check.data || check).basic !== undefined) {
+            hasStructure = true;
+          }
+        } catch (err: any) {
+          // If 404, remains false
+        }
+
+        const payload = {
+          ...salaryPayload,
+          employeeId: emp.id,
+        };
+
+        if (hasStructure) {
+          await apiClient.put(`/payroll/salary-structure/${emp.id}`, payload);
+        } else {
+          await apiClient.post('/payroll/salary-structure', payload);
+        }
+      });
+
+      await Promise.all(promises);
+      
+      // Also update fixed payroll scheme toggle on the site if selected
+      if (selectedSiteForPayroll) {
+        await SiteService.updateSite(selectedSiteForPayroll.id, {
+          name: selectedSiteForPayroll.name,
+          address: selectedSiteForPayroll.address,
+          latitude: selectedSiteForPayroll.latitude,
+          longitude: selectedSiteForPayroll.longitude,
+          radius: selectedSiteForPayroll.radius,
+          status: selectedSiteForPayroll.status,
+          isPayrollVisible: selectedSiteForPayroll.isPayrollVisible,
+          isFixedPayroll: selectedSiteForPayroll.isFixedPayroll, // keep current or updated
+        });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['sites'] });
+      alert(`Pay slip configuration successfully applied to all ${siteEmployeesForPayroll.length} employees on this site.`);
+      setIsPayrollConfigOpen(false);
+    } catch (err: any) {
+      console.error('Failed to save payroll config:', err);
+      alert('Failed to save configurations: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setPayrollConfigSaving(false);
+    }
+  };
+
+  const liveCalculations = useMemo(() => {
+    const basic = parseFloat(salaryForm.basic) || 0;
+    const da = parseFloat(salaryForm.da) || 0;
+    const hra = parseFloat(salaryForm.hra) || 0;
+    const washing = parseFloat(salaryForm.washingAllowance) || 0;
+    const conveyance = parseFloat(salaryForm.conveyance) || 0;
+    const special = parseFloat(salaryForm.special) || 0;
+    const medical = parseFloat(salaryForm.medicalAllowance) || 0;
+    const books = parseFloat(salaryForm.booksAllowance) || 0;
+    const lta = parseFloat(salaryForm.ltaAllowance) || 0;
+
+    const gross = basic + da + hra + washing + conveyance + special + medical + books + lta;
+
+    let pfBase = 0;
+    if (salaryForm.pfType === 'CUSTOM') {
+      pfBase = parseFloat(salaryForm.pfCustomBasis) || 0;
+    } else {
+      pfBase = Math.min(basic + da, 15000);
+    }
+    const pfEmployee = Math.round(pfBase * 0.12 * 100) / 100;
+
+    let esicBase = 0;
+    if (salaryForm.esicType === 'CUSTOM') {
+      esicBase = parseFloat(salaryForm.esicCustomBasis) || 0;
+    } else {
+      esicBase = gross <= 21000 ? gross : 0;
+    }
+    const esicEmployee = Math.round(esicBase * 0.0075 * 100) / 100;
+
+    let ptAmount = 0;
+    if (salaryForm.ptEnabled) {
+      if (salaryForm.ptCustomAmount !== '') {
+        ptAmount = parseFloat(salaryForm.ptCustomAmount) || 0;
+      } else {
+        if (gross > 7500 && gross <= 10000) ptAmount = 175;
+        else if (gross > 10000) ptAmount = 200;
+      }
+    }
+
+    let mlwfAmount = 0;
+    if (salaryForm.mlwfEnabled) {
+      mlwfAmount = parseFloat(salaryForm.mlwfCustomAmount) || 0;
+    }
+
+    const netPay = gross - (pfEmployee + esicEmployee + ptAmount + mlwfAmount);
+
+    return {
+      gross,
+      pfEmployee,
+      esicEmployee,
+      ptAmount,
+      mlwfAmount,
+      netPay,
+    };
+  }, [salaryForm]);
 
   const handleCloseModal = () => {
     setIsFormOpen(false);
@@ -397,6 +640,7 @@ export default function SiteListPage() {
         radius: formData.radius,
         status: formData.status,
         isPayrollVisible: formData.isPayrollVisible,
+        isFixedPayroll: formData.isFixedPayroll,
         organizationId: organizationId,
       };
 
@@ -609,7 +853,7 @@ export default function SiteListPage() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 150,
+      width: 190,
       sortable: false,
       align: 'center',
       headerAlign: 'center',
@@ -622,6 +866,25 @@ export default function SiteListPage() {
               color="primary"
             >
               <ViewIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Configure Employee Pay Slips">
+            <IconButton
+              size="small"
+              onClick={() => handleOpenPayrollConfig(params.row as Site)}
+              disabled={payrollConfigSaving}
+              sx={{ 
+                color: theme.palette.success.main,
+                fontWeight: 'bold',
+                border: params.row.isFixedPayroll ? '1px solid' : 'none',
+                borderColor: theme.palette.success.main,
+                backgroundColor: params.row.isFixedPayroll ? alpha(theme.palette.success.main, 0.12) : 'transparent',
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.success.main, 0.2),
+                }
+              }}
+            >
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>₹</span>
             </IconButton>
           </Tooltip>
           <Tooltip title="Edit Site">
@@ -835,6 +1098,44 @@ export default function SiteListPage() {
                           checked={field.value}
                           onChange={(e) => field.onChange(e.target.checked)}
                           color="primary"
+                        />
+                      )}
+                    />
+                  </Paper>
+
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderRadius: 3,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: alpha(theme.palette.success.main, 0.01),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.12)}`,
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                      <Box sx={{ p: 0.75, borderRadius: 2, backgroundColor: alpha(theme.palette.success.main, 0.08), color: theme.palette.success.main, display: 'flex', fontWeight: 'bold' }}>
+                        ₹
+                      </Box>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                          Fixed Payroll Scheme
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.72rem' }}>
+                          If enabled, a fixed payroll rate applies to all employees at this site.
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Controller
+                      name="isFixedPayroll"
+                      control={control}
+                      render={({ field }) => (
+                        <Switch
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          color="success"
                         />
                       )}
                     />
@@ -1208,6 +1509,386 @@ export default function SiteListPage() {
         initialLng={watchLongitude}
         initialAddress={watch('address')}
       />
+
+      {/* 4. Site-Wide Employee Salary / Pay Slip Configuration Dialog */}
+      <Dialog
+        open={isPayrollConfigOpen}
+        onClose={() => !payrollConfigSaving && setIsPayrollConfigOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              borderRadius: 4,
+              backgroundColor: theme.palette.background.default,
+              backgroundImage: 'radial-gradient(circle at 100% 100%, rgba(46, 125, 50, 0.03), transparent 250px)',
+              boxShadow: '0 24px 48px rgba(0,0,0,0.12)'
+            }
+          }
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1, borderBottom: '1px solid', borderColor: 'divider', backgroundColor: theme.palette.background.paper }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <PaymentsIcon color="success" sx={{ fontSize: 28 }} />
+            <Box>
+              <Typography variant="h6" fontWeight={850} sx={{ letterSpacing: '-0.5px' }}>
+                Employee Pay Slip Configuration (Site-Wide)
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+                {selectedSiteForPayroll?.name} • Applies to all {siteEmployeesForPayroll.length} employees on this site
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton onClick={() => setIsPayrollConfigOpen(false)} disabled={payrollConfigSaving} size="small" sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+            <BlockIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+
+        <Box component="form" onSubmit={handleSavePayrollConfig}>
+          <DialogContent sx={{ p: 4 }}>
+            {payrollConfigLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress color="success" /></Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                
+                {/* Fixed Payroll Toggle inside Configuration Dialog */}
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderRadius: 3,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: alpha(theme.palette.success.main, 0.02),
+                    borderColor: alpha(theme.palette.success.main, 0.15),
+                  }}
+                >
+                  <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                    <Box sx={{ p: 0.75, borderRadius: 2, backgroundColor: alpha(theme.palette.success.main, 0.08), color: theme.palette.success.main, display: 'flex', fontWeight: 'bold' }}>
+                      ₹
+                    </Box>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                        Enable Fixed Payroll Scheme for this Site
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25, fontSize: '0.72rem' }}>
+                        When active, a fixed payroll scheme applies to all employees assigned to this site.
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Switch
+                    checked={selectedSiteForPayroll?.isFixedPayroll || false}
+                    onChange={async (e) => {
+                      if (selectedSiteForPayroll) {
+                        const updated = e.target.checked;
+                        setSelectedSiteForPayroll({
+                          ...selectedSiteForPayroll,
+                          isFixedPayroll: updated
+                        });
+                      }
+                    }}
+                    color="success"
+                  />
+                </Paper>
+
+                <Grid container spacing={3}>
+                  {/* Left Column: Earnings */}
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+                      <Typography variant="subtitle2" fontWeight={800} color="success.main" sx={{ mb: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                        Earnings
+                      </Typography>
+                      <Grid container spacing={2}>
+                        <Grid size={{ xs: 12 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="BASIC / DA"
+                            value={salaryForm.basic}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, basic: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Dearness Allowance (DA)"
+                            value={salaryForm.da}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, da: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 12 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="House Rent Allowance"
+                            value={salaryForm.hra}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, hra: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Washing Allowance"
+                            value={salaryForm.washingAllowance}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, washingAllowance: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Medical Allowance"
+                            value={salaryForm.medicalAllowance}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, medicalAllowance: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Books & Education Allowance"
+                            value={salaryForm.booksAllowance}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, booksAllowance: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Conveyance Allowance"
+                            value={salaryForm.conveyance}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, conveyance: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="Special Allowance"
+                            value={salaryForm.special}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, special: e.target.value }))}
+                          />
+                        </Grid>
+                        <Grid size={{ xs: 6 }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            label="LTA Allowance"
+                            value={salaryForm.ltaAllowance}
+                            onChange={(e) => setSalaryForm(f => ({ ...f, ltaAllowance: e.target.value }))}
+                          />
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Grid>
+
+                  {/* Right Column: Deductions & Calculations */}
+                  <Grid size={{ xs: 12, md: 6 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      
+                      <Paper variant="outlined" sx={{ p: 3, borderRadius: 3 }}>
+                        <Typography variant="subtitle2" fontWeight={800} color="error.main" sx={{ mb: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          Deductions (Compliance)
+                        </Typography>
+                        
+                        <Grid container spacing={2}>
+                          {/* PF settings */}
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              label="PF Compliance"
+                              value={salaryForm.pfType}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, pfType: e.target.value }))}
+                            >
+                              <MenuItem value="STANDARD">Standard Basis (12%)</MenuItem>
+                              <MenuItem value="CUSTOM">Custom Basis Amount</MenuItem>
+                              <MenuItem value="NONE">Not Applicable (NONE)</MenuItem>
+                            </TextField>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="PF Custom Basis"
+                              disabled={salaryForm.pfType !== 'CUSTOM'}
+                              value={salaryForm.pfCustomBasis}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, pfCustomBasis: e.target.value }))}
+                            />
+                          </Grid>
+
+                          {/* ESIC settings */}
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              label="ESIC Compliance"
+                              value={salaryForm.esicType}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, esicType: e.target.value }))}
+                            >
+                              <MenuItem value="STANDARD">Standard (0.75%)</MenuItem>
+                              <MenuItem value="CUSTOM">Custom Basis Amount</MenuItem>
+                              <MenuItem value="NONE">Not Applicable (NONE)</MenuItem>
+                            </TextField>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="ESIC Custom Basis"
+                              disabled={salaryForm.esicType !== 'CUSTOM'}
+                              value={salaryForm.esicCustomBasis}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, esicCustomBasis: e.target.value }))}
+                            />
+                          </Grid>
+
+                          {/* PT settings */}
+                          <Grid size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={salaryForm.ptEnabled}
+                                  onChange={(e) => setSalaryForm(f => ({ ...f, ptEnabled: e.target.checked }))}
+                                  color="error"
+                                />
+                              }
+                              label={<Typography variant="body2">Professional Tax (PT)</Typography>}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="PT Custom Amount"
+                              disabled={!salaryForm.ptEnabled}
+                              value={salaryForm.ptCustomAmount}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, ptCustomAmount: e.target.value }))}
+                              placeholder="Default based on Gross"
+                            />
+                          </Grid>
+
+                          {/* MLWF settings */}
+                          <Grid size={{ xs: 6 }} sx={{ display: 'flex', alignItems: 'center' }}>
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={salaryForm.mlwfEnabled}
+                                  onChange={(e) => setSalaryForm(f => ({ ...f, mlwfEnabled: e.target.checked }))}
+                                  color="error"
+                                />
+                              }
+                              label={<Typography variant="body2">MLWF Welfare Fund</Typography>}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              type="number"
+                              label="MLWF Custom Amount"
+                              disabled={!salaryForm.mlwfEnabled}
+                              value={salaryForm.mlwfCustomAmount}
+                              onChange={(e) => setSalaryForm(f => ({ ...f, mlwfCustomAmount: e.target.value }))}
+                            />
+                          </Grid>
+                        </Grid>
+                      </Paper>
+
+                      {/* Live Calculation preview card */}
+                      <Paper
+                        variant="outlined"
+                        sx={{
+                          p: 3,
+                          borderRadius: 3,
+                          backgroundColor: alpha(theme.palette.success.main, 0.04),
+                          borderColor: alpha(theme.palette.success.main, 0.15),
+                        }}
+                      >
+                        <Typography variant="subtitle2" fontWeight={800} color="success.main" sx={{ mb: 1.5, textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem' }}>
+                          ESTIMATED SITE REMUNERATION SLIP
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Gross Earnings</Typography>
+                            <Typography variant="body1" fontWeight={700} color="success.main">{INR(liveCalculations.gross)}</Typography>
+                          </Grid>
+                          <Grid size={{ xs: 6 }}>
+                            <Typography variant="caption" color="text.secondary">Total Deductions</Typography>
+                            <Typography variant="body1" fontWeight={700} color="error.main">
+                              {INR(liveCalculations.pfEmployee + liveCalculations.esicEmployee + liveCalculations.ptAmount + liveCalculations.mlwfAmount)}
+                            </Typography>
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
+                            <Divider sx={{ my: 1 }} />
+                            <Typography variant="caption" color="text.secondary">Estimated Net Payable</Typography>
+                            <Typography variant="h5" fontWeight={900} color="primary.main">{INR(liveCalculations.netPay)}</Typography>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Employees Scope List */}
+                <Paper variant="outlined" sx={{ p: 2.5, borderRadius: 3 }}>
+                  <Typography variant="subtitle2" fontWeight={850} color="primary" sx={{ mb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PersonIcon fontSize="small" /> Affected Personnel ({siteEmployeesForPayroll.length})
+                  </Typography>
+                  {siteEmployeesForPayroll.length === 0 ? (
+                    <Typography variant="body2" color="warning.main" fontWeight={600}>
+                      No employees are currently assigned to this site. Assign employees to this site before configuring pay slips.
+                    </Typography>
+                  ) : (
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                      {siteEmployeesForPayroll.map((emp) => (
+                        <Chip
+                          key={emp.id}
+                          label={`${emp.fullName} (${emp.role})`}
+                          size="small"
+                          sx={{ fontWeight: 650, borderRadius: 2 }}
+                        />
+                      ))}
+                    </Box>
+                  )}
+                </Paper>
+
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider', backgroundColor: theme.palette.background.paper }}>
+            <Button onClick={() => setIsPayrollConfigOpen(false)} color="inherit" disabled={payrollConfigSaving}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="success"
+              disabled={payrollConfigSaving || payrollConfigLoading || siteEmployeesForPayroll.length === 0}
+              sx={{ borderRadius: 2, fontWeight: 700, px: 4 }}
+            >
+              {payrollConfigSaving ? <CircularProgress size={20} color="inherit" /> : 'Apply Configuration to All'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
     </Box>
   );
 }

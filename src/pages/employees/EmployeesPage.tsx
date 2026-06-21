@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme, Divider, FormControlLabel, Checkbox, InputAdornment } from '@mui/material';
+import { Box, Typography as MuiTypography, Chip, IconButton, Tooltip, Button, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions, TextField, Grid, MenuItem, CircularProgress, Alert, Paper, alpha, useTheme, Divider, FormControlLabel, Checkbox, InputAdornment, Avatar } from '@mui/material';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useQueryClient } from '@tanstack/react-query';
 import type { GridColDef } from '@mui/x-data-grid';
-import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon, Badge as BadgeIcon, Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon, Add as AddIcon, Badge as BadgeIcon, Search as SearchIcon, Clear as ClearIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { DataTable } from '../../components/common/DataTable';
@@ -14,6 +14,8 @@ import { EmployeeService } from '../../api/employee.service';
 import apiClient from '../../api/client';
 import type { Employee } from '../../types/employee';
 import { useAuthStore } from '../../stores/auth.store';
+import ratnamLogo from '../../assets/ratnam.png';
+import { normalizeUrl } from '../../utils/url';
 
 const Typography = MuiTypography as any;
 
@@ -66,6 +68,7 @@ const editSchema = z.object({
   aadhaar: z.string().regex(/^$|^\d{12}$/, 'Aadhaar must be exactly 12 digits').optional().or(z.literal('')),
   pan: z.string().regex(/^$|^[A-Z]{5}\d{4}[A-Z]$/, 'Invalid PAN format').optional().or(z.literal('')),
   siteId: z.string().optional().or(z.literal('')),
+  photoUrl: z.string().optional().or(z.literal('')),
 });
 type EditSchema = z.infer<typeof editSchema>;
 
@@ -80,6 +83,7 @@ const EmployeesPage: React.FC = () => {
   const [employeeToEdit, setEmployeeToEdit] = React.useState<Employee | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
+  const [isPhotoUploading, setIsPhotoUploading] = React.useState(false);
   const [apiError, setApiError] = React.useState<string | null>(null);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [showSecondConfirm, setShowSecondConfirm] = React.useState(false);
@@ -92,9 +96,10 @@ const EmployeesPage: React.FC = () => {
   const [rejectingDocId, setRejectingDocId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  const { control, handleSubmit, reset, formState: { errors } } = useForm<EditSchema>({
+  const { control, handleSubmit, reset, watch, formState: { errors } } = useForm<EditSchema>({
     resolver: zodResolver(editSchema),
   });
+
 
   const handleEditClick = (employee: any) => {
     const parts = employee.fullName.split(' ');
@@ -139,6 +144,7 @@ const EmployeesPage: React.FC = () => {
       aadhaar: employee.aadhaar || '',
       pan: employee.pan || '',
       siteId: employee.siteId || '',
+      photoUrl: employee.photoUrl || ratnamLogo,
     });
     setEmployeeToEdit(employee);
     setApiError(null);
@@ -192,6 +198,7 @@ const EmployeesPage: React.FC = () => {
         aadhaar: data.aadhaar || "",
         pan: data.pan || "",
         siteId: data.siteId || null,
+        photoUrl: data.photoUrl || null,
       };
       await EmployeeService.updateEmployee(employeeToEdit.id, payload);
       queryClient.invalidateQueries({ queryKey: ['employees'] });
@@ -262,6 +269,115 @@ const EmployeesPage: React.FC = () => {
     }
   };
 
+  const renderDocCard = (doc: any, label?: string) => {
+    const isDocVerified = doc.verified || doc.isVerified;
+    const docLabel = label || doc.type.replaceAll('_', ' ');
+    return (
+      <Paper 
+        key={doc.id} 
+        variant="outlined" 
+        sx={{ 
+          p: 2.5, 
+          borderRadius: 3, 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: 2,
+          borderColor: isDocVerified
+            ? theme.palette.success.main + '40'
+            : doc.rejectionReason
+              ? theme.palette.error.main + '40'
+              : theme.palette.divider 
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="subtitle2" fontWeight={700}>{docLabel}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+              Uploaded on: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '-'}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Button 
+              variant="text" 
+              size="small" 
+              href={doc.fileUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              sx={{ mr: 1 }}
+            >
+              View File
+            </Button>
+            <Chip 
+              label={isDocVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
+              color={isDocVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
+              size="small" 
+              sx={{ fontWeight: 700, borderRadius: 1 }}
+            />
+          </Box>
+        </Box>
+
+        {!isDocVerified && !isSupervisor && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button 
+                variant="contained" 
+                color="success" 
+                size="small"
+                onClick={() => handleVerifyDocument(doc.id, true)}
+                sx={{ borderRadius: 2 }}
+              >
+                Approve Document
+              </Button>
+              <Button 
+                variant="outlined" 
+                color="error" 
+                size="small"
+                onClick={() => setRejectingDocId(rejectingDocId === doc.id ? null : doc.id)}
+                sx={{ borderRadius: 2 }}
+              >
+                {rejectingDocId === doc.id ? 'Cancel' : 'Reject Document'}
+              </Button>
+            </Box>
+
+            {rejectingDocId === doc.id && (
+              <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Rejection Reason"
+                  placeholder="e.g. Aadhaar details are blurred"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                />
+                <Button 
+                  variant="contained" 
+                  color="error"
+                  size="small"
+                  disabled={!rejectionReason.trim()}
+                  onClick={() => {
+                    handleVerifyDocument(doc.id, false, rejectionReason);
+                    setRejectingDocId(null);
+                    setRejectionReason('');
+                  }}
+                  sx={{ borderRadius: 2 }}
+                >
+                  Confirm
+                </Button>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {doc.rejectionReason && (
+          <Box sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2 }}>
+            <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>REJECTION REASON:</Typography>
+            <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>{doc.rejectionReason}</Typography>
+          </Box>
+        )}
+      </Paper>
+    );
+  };
+
   const { data: employeesData, isLoading: isEmployeesLoading, error: employeesError } = useQuery({
     queryKey: ['employees'],
     queryFn: () => EmployeeService.getEmployees(),
@@ -283,16 +399,34 @@ const EmployeesPage: React.FC = () => {
     {
       field: 'fullName',
       headerName: 'Full Name',
-      width: 220,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {params.value}
-          </Typography>
-        </Box>
-      )
+      width: 240,
+      headerAlign: 'left',
+      align: 'left',
+      renderCell: (params) => {
+        const nameParts = (params.value || '').split(' ');
+        const initials = nameParts.map((p: string) => p[0] || '').join('').substring(0, 2).toUpperCase();
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, height: '100%', pl: 1 }}>
+            <Avatar 
+              src={normalizeUrl(params.row.photoUrl) || ratnamLogo} 
+              sx={{ 
+                width: 32, 
+                height: 32, 
+                fontSize: '0.8rem', 
+                fontWeight: 700, 
+                bgcolor: (normalizeUrl(params.row.photoUrl) || ratnamLogo) ? 'transparent' : 'primary.main',
+                color: 'primary.contrastText',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              {initials || '?'}
+            </Avatar>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              {params.value}
+            </Typography>
+          </Box>
+        );
+      }
     },
     { 
       field: 'email', 
@@ -572,6 +706,8 @@ const EmployeesPage: React.FC = () => {
         getRowId={(row) => row.id}
       />
 
+
+
       {/* Delete Dialog */}
       <Dialog open={!!employeeToDelete && !showSecondConfirm} onClose={() => !isDeleting && setEmployeeToDelete(null)}>
         <DialogTitle>Confirm Delete</DialogTitle>
@@ -619,6 +755,111 @@ const EmployeesPage: React.FC = () => {
                   PERSONAL DETAILS
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
+              </Grid>
+
+              {/* Profile Photo Upload */}
+              <Grid size={{ xs: 12 }} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
+                <Controller
+                  name="photoUrl"
+                  control={control}
+                  render={({ field }) => {
+                    const initials = (watch('firstName') || watch('lastName'))
+                      ? `${watch('firstName')?.[0] || ''}${watch('lastName')?.[0] || ''}`.toUpperCase()
+                      : '?';
+                    return (
+                      <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          id="edit-profile-photo-input"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setIsPhotoUploading(true);
+                            try {
+                              const url = await EmployeeService.uploadDocumentFile(file);
+                              field.onChange(url);
+                            } catch (err: any) {
+                              alert('Failed to upload photo: ' + (err.message || 'Unknown error'));
+                            } finally {
+                              setIsPhotoUploading(false);
+                            }
+                          }}
+                        />
+                        <label htmlFor="edit-profile-photo-input">
+                          <Tooltip title="Upload Profile Photo">
+                            <Box sx={{
+                              position: 'relative',
+                              cursor: 'pointer',
+                              borderRadius: '50%',
+                              overflow: 'hidden',
+                              width: 100,
+                              height: 100,
+                              border: `3px solid ${theme.palette.primary.main}`,
+                              '&:hover .upload-overlay': {
+                                opacity: 1
+                              }
+                            }}>
+                              <Avatar
+                                src={normalizeUrl(field.value)}
+                                sx={{
+                                  width: '100%',
+                                  height: '100%',
+                                  fontSize: '2.5rem',
+                                  fontWeight: 700,
+                                  bgcolor: 'grey.200',
+                                  color: 'text.secondary'
+                                }}
+                              >
+                                {initials}
+                              </Avatar>
+                              
+                              {/* Upload Hover Overlay */}
+                              <Box className="upload-overlay" sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                bgcolor: 'rgba(0,0,0,0.5)',
+                                color: 'common.white',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                opacity: 0,
+                                transition: 'opacity 0.2s ease-in-out',
+                              }}>
+                                <UploadIcon fontSize="small" />
+                                <Typography variant="caption" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 600 }}>
+                                  UPLOAD
+                                </Typography>
+                              </Box>
+
+                              {/* Uploading Spinner */}
+                              {isPhotoUploading && (
+                                <Box sx={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  bgcolor: 'rgba(0,0,0,0.6)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}>
+                                  <CircularProgress size={28} />
+                                </Box>
+                              )}
+                            </Box>
+                          </Tooltip>
+                        </label>
+                      </Box>
+                    );
+                  }}
+                />
               </Grid>
 
               <Grid size={{ xs: 12, md: 6 }}>
@@ -1082,6 +1323,75 @@ const EmployeesPage: React.FC = () => {
                 <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{verificationError}</Alert>
               )}
               
+              {/* Premium Profile Header Banner */}
+              <Box sx={{ 
+                position: 'relative', 
+                mb: 4, 
+                borderRadius: 4, 
+                overflow: 'hidden', 
+                boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
+                border: `1px solid ${theme.palette.divider}`,
+                background: 'background.paper'
+              }}>
+                <Box sx={{ 
+                  height: 100, 
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.8)} 0%, ${alpha(theme.palette.secondary.main, 0.8)} 100%)` 
+                }} />
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'center', sm: 'flex-end' },
+                  px: 3, 
+                  pb: 3, 
+                  mt: -5,
+                  gap: 3,
+                  textAlign: { xs: 'center', sm: 'left' }
+                }}>
+                  <Avatar 
+                    src={normalizeUrl(employeeDetails.photoUrl) || ratnamLogo} 
+                    sx={{ 
+                      width: 96, 
+                      height: 96, 
+                      border: `4px solid ${theme.palette.background.paper}`,
+                      boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                      bgcolor: (normalizeUrl(employeeDetails.photoUrl) || ratnamLogo) ? 'transparent' : 'primary.main',
+                      color: 'primary.contrastText',
+                      fontSize: '2.25rem',
+                      fontWeight: 700
+                    }}
+                  >
+                    {employeeDetails.fullName?.split(' ').map((p: any) => p[0] || '').join('').substring(0, 2).toUpperCase() || '?'}
+                  </Avatar>
+                  <Box sx={{ flexGrow: 1, mb: 0.5 }}>
+                    <Typography variant="h5" fontWeight={800} sx={{ mb: 0.5, letterSpacing: '-0.5px' }}>
+                      {employeeDetails.fullName}
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.25, alignItems: 'center', justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                      <Typography variant="body2" color="text.secondary" fontWeight={600}>
+                        {employeeDetails.designation || 'No Designation'}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">•</Typography>
+                      <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                        {employeeDetails.department || 'No Department'}
+                      </Typography>
+                      <Chip 
+                        label={employeeDetails.role?.replace('_', ' ')} 
+                        color={ROLE_COLORS[employeeDetails.role] || 'default'} 
+                        size="small" 
+                        sx={{ fontWeight: 800, fontSize: '0.65rem', borderRadius: 1.5, textTransform: 'uppercase' }}
+                      />
+                      <Chip 
+                        label={employeeDetails.status || 'ACTIVE'} 
+                        color={employeeDetails.status === 'ACTIVE' ? 'success' : 'default'} 
+                        size="small" 
+                        variant="outlined"
+                        sx={{ fontWeight: 700, fontSize: '0.65rem', borderRadius: 1.5 }}
+                      />
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+
               <Grid container spacing={3}>
                 {/* Basic Personal details */}
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -1309,119 +1619,67 @@ const EmployeesPage: React.FC = () => {
                     Identification Documents
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                  {employeeDetails.documents && employeeDetails.documents.length > 0 ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      {employeeDetails.documents.map((doc: any) => {
-                        const isDocVerified = doc.verified || doc.isVerified;
-                        return (
+                  {(() => {
+                    if (!employeeDetails.documents || employeeDetails.documents.length === 0) {
+                      return <Typography variant="body2" color="text.secondary">No documents uploaded.</Typography>;
+                    }
+
+                    const aadhaarFront = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR_FRONT');
+                    const aadhaarBack = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR_BACK');
+                    const legacyAadhaar = employeeDetails.documents.find((d: any) => d.type === 'AADHAAR');
+                    const otherDocs = employeeDetails.documents.filter((d: any) => d.type !== 'AADHAAR' && d.type !== 'AADHAAR_FRONT' && d.type !== 'AADHAAR_BACK');
+
+                    const hasAadhaar = aadhaarFront || aadhaarBack || legacyAadhaar;
+
+                    return (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {hasAadhaar && (
                           <Paper 
-                            key={doc.id} 
                             variant="outlined" 
                             sx={{ 
                               p: 2.5, 
                               borderRadius: 3, 
-                              display: 'flex', 
-                              flexDirection: 'column',
-                              gap: 2,
-                              borderColor: isDocVerified
-                                ? theme.palette.success.main + '40'
-                                : doc.rejectionReason
-                                  ? theme.palette.error.main + '40'
-                                  : theme.palette.divider 
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+                              backgroundColor: alpha(theme.palette.primary.main, 0.01)
                             }}
                           >
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Box>
-                                <Typography variant="subtitle2" fontWeight={700}>{doc.type}</Typography>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                  Uploaded on: {doc.createdAt ? new Date(doc.createdAt).toLocaleDateString() : '-'}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                              <BadgeIcon color="primary" />
+                              <Typography variant="subtitle2" fontWeight={800}>AADHAAR CARD</Typography>
+                              {employeeDetails.aadhaar && (
+                                <Typography variant="body2" fontWeight={600} color="text.secondary" sx={{ ml: 'auto' }}>
+                                  Number: {employeeDetails.aadhaar}
                                 </Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                                <Button 
-                                  variant="text" 
-                                  size="small" 
-                                  href={doc.fileUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  sx={{ mr: 1 }}
-                                >
-                                  View File
-                                </Button>
-                                <Chip 
-                                  label={isDocVerified ? 'VERIFIED' : doc.rejectionReason ? 'REJECTED' : 'PENDING VERIFICATION'} 
-                                  color={isDocVerified ? 'success' : doc.rejectionReason ? 'error' : 'warning'} 
-                                  size="small" 
-                                  sx={{ fontWeight: 700, borderRadius: 1 }}
-                                />
-                              </Box>
+                              )}
                             </Box>
-
-                            {!isDocVerified && !isSupervisor && (
-                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}` }}>
-                                <Box sx={{ display: 'flex', gap: 2 }}>
-                                  <Button 
-                                    variant="contained" 
-                                    color="success" 
-                                    size="small"
-                                    onClick={() => handleVerifyDocument(doc.id, true)}
-                                    sx={{ borderRadius: 2 }}
-                                  >
-                                    Approve Document
-                                  </Button>
-                                  <Button 
-                                    variant="outlined" 
-                                    color="error" 
-                                    size="small"
-                                    onClick={() => setRejectingDocId(rejectingDocId === doc.id ? null : doc.id)}
-                                    sx={{ borderRadius: 2 }}
-                                  >
-                                    {rejectingDocId === doc.id ? 'Cancel' : 'Reject Document'}
-                                  </Button>
-                                </Box>
-
-                                {rejectingDocId === doc.id && (
-                                  <Box sx={{ display: 'flex', gap: 1.5, mt: 1 }}>
-                                    <TextField
-                                      fullWidth
-                                      size="small"
-                                      label="Rejection Reason"
-                                      placeholder="e.g. Aadhaar details are blurred"
-                                      value={rejectionReason}
-                                      onChange={(e) => setRejectionReason(e.target.value)}
-                                    />
-                                    <Button 
-                                      variant="contained" 
-                                      color="error"
-                                      size="small"
-                                      disabled={!rejectionReason.trim()}
-                                      onClick={() => {
-                                        handleVerifyDocument(doc.id, false, rejectionReason);
-                                        setRejectingDocId(null);
-                                        setRejectionReason('');
-                                      }}
-                                      sx={{ borderRadius: 2 }}
-                                    >
-                                      Confirm
-                                    </Button>
-                                  </Box>
-                                )}
-                              </Box>
-                            )}
-
-                            {doc.rejectionReason && (
-                              <Box sx={{ mt: 1, p: 1.5, bgcolor: alpha(theme.palette.error.main, 0.05), borderRadius: 2 }}>
-                                <Typography variant="caption" color="error" sx={{ fontWeight: 600 }}>REJECTION REASON:</Typography>
-                                <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>{doc.rejectionReason}</Typography>
-                              </Box>
-                            )}
+                            <Grid container spacing={2}>
+                              {legacyAadhaar && (
+                                <Grid size={{ xs: 12 }}>
+                                  {renderDocCard(legacyAadhaar, "Full Document (Legacy)")}
+                                </Grid>
+                              )}
+                              {aadhaarFront && (
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  {renderDocCard(aadhaarFront, "Front Side")}
+                                </Grid>
+                              )}
+                              {aadhaarBack && (
+                                <Grid size={{ xs: 12, md: 6 }}>
+                                  {renderDocCard(aadhaarBack, "Back Side")}
+                                </Grid>
+                              )}
+                            </Grid>
                           </Paper>
-                        );
-                      })}
-                    </Box>
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">No documents uploaded.</Typography>
-                  )}
+                        )}
+
+                        {otherDocs.map((doc: any) => (
+                          <React.Fragment key={doc.id}>
+                            {renderDocCard(doc)}
+                          </React.Fragment>
+                        ))}
+                      </Box>
+                    );
+                  })()}
                 </Grid>
               </Grid>
             </Box>

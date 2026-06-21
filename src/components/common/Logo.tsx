@@ -46,13 +46,13 @@ export const Logo: React.FC<LogoProps> = ({
           justifyContent: 'center',
           background: 'linear-gradient(135deg, #0c342b 0%, #175346 100%)',
           border: `2px solid #CCA43B`,
-          boxShadow: (theme) => `0 4px 12px ${alpha('#0c342b', 0.25)}, inset 0 2px 4px rgba(255, 255, 255, 0.25)`,
+          boxShadow: `0 4px 12px ${alpha('#0c342b', 0.25)}, inset 0 2px 4px rgba(255, 255, 255, 0.25)`,
           overflow: 'hidden',
           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           ...(hoverEffect && {
             '&:hover': {
               transform: 'scale(1.06) rotate(3deg)',
-              boxShadow: (theme) => `0 8px 20px ${alpha('#0c342b', 0.35)}, inset 0 2px 4px rgba(255, 255, 255, 0.35)`,
+              boxShadow: `0 8px 20px ${alpha('#0c342b', 0.35)}, inset 0 2px 4px rgba(255, 255, 255, 0.35)`,
               borderColor: '#e5c158',
             },
           }),

@@ -12,12 +12,6 @@ import {
   InputLabel,
   CircularProgress,
   Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Paper,
   Chip,
   useTheme,
@@ -195,7 +189,7 @@ export default function ClientDashboardPage() {
 
       {/* Stats Cards */}
       <Grid container spacing={4} sx={{ mb: 5 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Total Employees"
             value={totalEmployees}
@@ -204,7 +198,7 @@ export default function ClientDashboardPage() {
             gradient="linear-gradient(135deg, #3949ab 0%, #1a237e 100%)"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Active Workforce"
             value={activeEmployees}
@@ -213,7 +207,7 @@ export default function ClientDashboardPage() {
             gradient="linear-gradient(135deg, #00897b 0%, #004d40 100%)"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Today's Present"
             value={todayPresent}
@@ -222,7 +216,7 @@ export default function ClientDashboardPage() {
             gradient="linear-gradient(135deg, #f4511e 0%, #bf360c 100%)"
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <StatCard
             title="Active Sites"
             value={selectedSiteId === 'all' ? sites.length : 1}
@@ -236,7 +230,7 @@ export default function ClientDashboardPage() {
       {/* Chart & Live Attendance Grid */}
       <Grid container spacing={4}>
         {/* Attendance Trend Chart */}
-        <Grid item xs={12} lg={7}>
+        <Grid size={{ xs: 12, lg: 7 }}>
           <Card sx={{ borderRadius: 4, boxShadow: '0 10px 40px rgba(0,0,0,0.04)', height: '100%', overflow: 'hidden' }}>
             <CardContent sx={{ p: 4 }}>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#2c3e50' }}>
@@ -267,7 +261,7 @@ export default function ClientDashboardPage() {
         </Grid>
 
         {/* Live Attendance Feed */}
-        <Grid item xs={12} lg={5}>
+        <Grid size={{ xs: 12, lg: 5 }}>
           <Card sx={{ borderRadius: 4, boxShadow: '0 10px 40px rgba(0,0,0,0.04)', height: '100%' }}>
             <CardContent sx={{ p: 0 }}>
               <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -285,7 +279,7 @@ export default function ClientDashboardPage() {
                 ) : (
                   <Grid container spacing={2}>
                     {attendanceRecords.map((record: any) => (
-                      <Grid item xs={12} key={record.id}>
+                      <Grid size={{ xs: 12 }} key={record.id}>
                         <Paper sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: alpha('#bdc3c7', 0.3), display: 'flex', alignItems: 'center', gap: 2, transition: 'transform 0.2s, box-shadow 0.2s', '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 6px 15px rgba(0,0,0,0.05)' } }}>
                           <Avatar sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1), color: theme.palette.primary.main, width: 48, height: 48, fontWeight: 700 }}>
                             {record.employeeName.charAt(0)}
